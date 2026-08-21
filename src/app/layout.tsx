@@ -1,4 +1,3 @@
-// done
 import "./globals.css";
 import Navbar from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -7,9 +6,9 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { SportsProvider } from "@/contexts/SportsContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SocketProvider } from "@/contexts/SocketContext";
-import { Outfit } from "next/font/google";
+// import { Outfit } from "next/font/google";
 
-const outfit = Outfit({ subsets: ["latin"] });
+// const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata = {
   title: "SportsBook - College Sports Reimagined",
@@ -19,7 +18,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.className} antialiased`} suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         <ToastProvider>
           <AuthProvider>
             <SocketProvider>
