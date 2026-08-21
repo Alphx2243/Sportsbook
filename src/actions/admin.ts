@@ -173,7 +173,7 @@ export async function createMatch(data: any): Promise<ActionResponse> {
         })
         revalidatePath('/admin/matches')
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return { success: true, data: withMatchDisplay({ ...match, sport }) }
     } catch (error: any) {
         return { success: false, error: error.message }
@@ -195,7 +195,7 @@ export async function updateMatch(matchId: string, data: any): Promise<ActionRes
         })
         revalidatePath('/admin/matches')
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return { success: true, data: null }
     } catch (error: any) {
         return { success: false, error: error.message }
@@ -210,7 +210,7 @@ export async function deleteMatch(matchId: string): Promise<ActionResponse> {
         })
         revalidatePath('/admin/matches')
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return { success: true, data: null }
     } catch (error: any) {
         return { success: false, error: error.message }
