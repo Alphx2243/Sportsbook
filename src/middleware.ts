@@ -5,17 +5,30 @@ import { verifyEdgeSessionToken } from '@/lib/edge-auth'
 import { canAccessAdminPath, getDefaultRouteForRole, isPortalRole } from '@/lib/roles'
 
 const allowedOrigins = [
+  'https://sportsbook.iiitd.edu.in',
   'http://sportsbook.iiitd.edu.in'
 ];
 
+function createNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let value = '';
+  bytes.forEach((byte) => {
+    value += String.fromCharCode(byte);
+  });
+  return btoa(value);
+}
+
 function nonceHeaders(request: NextRequest) {
-  const nonce = btoa(crypto.randomUUID());
+  const isDev = process.env.NODE_ENV === 'development';
+  const nonce = createNonce();
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
+    `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self' https:",
+    "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'self'",
@@ -27,6 +40,18 @@ function nonceHeaders(request: NextRequest) {
   return { csp, headers };
 }
 
+function applySecurityHeaders(response: NextResponse, csp: string) {
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('Cache-Control', 'private, no-store');
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  return response;
+}
+
 
 export async function middleware(request: NextRequest) {
   const { csp, headers } = nonceHeaders(request);
@@ -35,7 +60,7 @@ export async function middleware(request: NextRequest) {
     const origin = request.headers.get('origin');
     const isServerAction = request.headers.has('next-action');
     if (!isServerAction && origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse('Forbidden', { status: 403, headers: { 'Content-Security-Policy': csp } });
+      return applySecurityHeaders(new NextResponse('Forbidden', { status: 403 }), csp);
     }
   }
 
@@ -43,37 +68,35 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/booking-scanner') || request.nextUrl.pathname.startsWith('/gym-scanner')) {
     const session = request.cookies.get('session')?.value;
     if (!session) {
-      return redirectOrReject(request);
+      return redirectOrReject(request, csp);
     }
 
     try {
       const payload = await verifyEdgeSessionToken(session);
       if (!payload.userId || !isPortalRole(payload.role)) {
-        return redirectOrReject(request);
+        return redirectOrReject(request, csp);
       }
 
       if (!canAccessAdminPath(payload.role, request.nextUrl.pathname)) {
-        return redirectOrReject(request, getDefaultRouteForRole(payload.role));
+        return redirectOrReject(request, csp, getDefaultRouteForRole(payload.role));
       }
     } catch {
-      return redirectOrReject(request);
+      return redirectOrReject(request, csp);
     }
   }
 
   const response = NextResponse.next({ request: { headers } });
-  response.headers.set('Content-Security-Policy', csp);
-
-  return response;
+  return applySecurityHeaders(response, csp);
 }
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)',],
 }
 
-function redirectOrReject(request: NextRequest, redirectPath = '/login') {
+function redirectOrReject(request: NextRequest, csp: string, redirectPath = '/login') {
   if (request.method !== 'GET') {
-    return new NextResponse('Unauthorized', { status: 401 });
+    return applySecurityHeaders(new NextResponse('Unauthorized', { status: 401 }), csp);
   }
 
   const loginUrl = new URL(redirectPath, request.url);
-  return NextResponse.redirect(loginUrl);
+  return applySecurityHeaders(NextResponse.redirect(loginUrl), csp);
 }

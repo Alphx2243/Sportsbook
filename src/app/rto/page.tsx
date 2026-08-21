@@ -442,7 +442,7 @@ export default function Occupancy() {
     <div className="min-h-screen bg-background text-foreground pt-[8rem] py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[10%] left-[-5%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse [animation-delay:2s]" />
       </div>
 
       <div className="max-w-7xl mx-auto text-center relative z-10">

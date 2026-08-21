@@ -14,6 +14,15 @@ import { Card, CardContent } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
+function availabilityWidthClass(available: number, total: number) {
+   const pct = total ? available / total : 0
+   if (pct >= 0.9) return 'w-full'
+   if (pct >= 0.75) return 'w-3/4'
+   if (pct >= 0.5) return 'w-1/2'
+   if (pct >= 0.25) return 'w-1/4'
+   return 'w-0'
+}
+
 export default function SportsManagement() {
    const [sports, setSports] = useState<any[]>([])
    const [loading, setLoading] = useState(true)
@@ -283,7 +292,7 @@ export default function SportsManagement() {
                                                    <span className="text-sm font-semibold transition-colors">{eq.name}</span>
                                                    <div className="flex items-center gap-3 mt-1">
                                                       <div className="h-1.5 w-24 bg-primary rounded-full overflow-hidden">
-                                                         <div className="h-full bg-blue-500/80 transition-all duration-500" style={{ width: `${(available / eq.total) * 100}%` }} />
+                                                         <div className={`h-full bg-blue-500/80 transition-all duration-500 ${availabilityWidthClass(available, eq.total)}`} />
                                                       </div>
                                                       <span className="text-xs font-medium text-muted-foreground tabular-nums">{available} Avail</span>
                                                    </div>

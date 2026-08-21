@@ -41,7 +41,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme }}>
-            <div style={{ visibility: mounted ? 'visible' : 'hidden' }}>
+            <div className={mounted ? "visible" : "invisible"}>
                 {children}
             </div>
         </ThemeContext.Provider>

@@ -118,8 +118,8 @@ function App() {
           <section className="mb-12">
             <h2 className="text-3xl font-bold text-foreground text-center mb-8">Available Slots</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {availableSlots.map((slot: Slot, index: number) => (
-                <div key={slot.id} className="glass-card rounded-2xl overflow-hidden shadow-lg group hover:border-primary/50" style={{ animationDelay: `${index * 100}ms` }}>
+              {availableSlots.map((slot: Slot) => (
+                <div key={slot.id} className="glass-card rounded-2xl overflow-hidden shadow-lg group hover:border-primary/50">
                   <div className="relative h-48 overflow-hidden">
                     <Image
                       src={slot.imageUrl}
