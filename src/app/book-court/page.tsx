@@ -5,7 +5,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useRouter } from "next/navigation";
 import { useSport } from "@/contexts/SportsContext";
 import { secureBooking } from '@/actions/bookings';
-import { useSocket } from "@/hooks/useSocket";
+// import { useSocket } from "@/hooks/useSocket";
 import { Sport, User, EquipmentCounts } from "@/interfaces";
 
 
@@ -25,9 +25,9 @@ export default function AgniCodersBooking() {
   const { sports: spt, setSports, refreshSports } = useSport();
 
   
-  useSocket("book-court", sportsList[selectedIndex], () => {
-    refreshSports(true);
-  });
+  // useSocket("book-court", sportsList[selectedIndex], () => {
+    // refreshSports(true);
+  // });
 
   useEffect(() => {
     const loadSports = () => {

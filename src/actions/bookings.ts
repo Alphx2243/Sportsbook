@@ -11,7 +11,7 @@ import { normalizeRole, ROLES } from '@/lib/roles'
 import { bookingStatus, equipmentIssues, positiveInt, requiredString } from '@/lib/validation'
 import { createBookingQrPayload, parseBookingQrPayload, verifyBookingQrPayload } from '@/lib/booking-qr'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, resolveCourtByNo, resolveSportByName, withBookingDisplay } from '@/lib/normalized-data'
-import { notifySportUpdate } from '@/lib/socket-notify'
+// import { notifySportUpdate } from '@/lib/socket-notify'
 import { formatISTTime, getISTDate } from '@/lib/utils'
 
 export async function createBooking(data: CreateBookingInput): Promise<ActionResponse> {

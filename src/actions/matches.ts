@@ -7,7 +7,7 @@ import { fail, ok } from '@/lib/action-response'
 import { ensureAdmin } from '@/lib/auth-utils'
 import { matchStatus, nonNegativeInt, requiredString } from '@/lib/validation'
 import { resolveSportByName, withMatchDisplay } from '@/lib/normalized-data'
-import { notifyMatchesUpdate } from '@/lib/socket-notify'
+// import { notifyMatchesUpdate } from '@/lib/socket-notify'
 
 export async function getMatches(filters: { status?: string; sportName?: string } = {}): Promise<ActionResponse<{ documents: any[], total: number }>> {
     try {

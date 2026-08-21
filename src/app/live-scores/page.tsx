@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Activity, Clock, AlertCircle } from 'lucide-react';
 import { getMatches } from '@/actions/matches';
-import { useSocket } from '@/hooks/useSocket';
+// import { useSocket } from '@/hooks/useSocket';
 
 
 interface Match {
@@ -38,7 +38,7 @@ export default function LiveScoring() {
     fetchMatches();
     
   }, []);
-
+/*
   useSocket('live-scores', undefined, () => {
     const fetchMatches = async () => {
       try {
@@ -52,7 +52,7 @@ export default function LiveScoring() {
     };
     fetchMatches();
   }, 'matches_updated');
-
+*/
   const liveGames = matches.filter(g => g.status === 'live');
   const completedGames = matches.filter(g => g.status === 'finished');
   const upcomingGames = matches.filter(g => g.status === 'upcoming');

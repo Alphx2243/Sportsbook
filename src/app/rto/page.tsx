@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useSport } from "@/contexts/SportsContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useSocket } from "@/hooks/useSocket";
+// import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -413,9 +413,9 @@ export default function Occupancy() {
   const [selectedSport, setSelectedSport] = useState("");
   const [activeTab, setActiveTab] = useState("liveVacancy");
 
-  useSocket("rto", selectedSport, () => {
-    refreshSports(true);
-  });
+  // useSocket("rto", selectedSport, () => {
+  //   refreshSports(true);
+  // });
 
   useEffect(() => {
     if (sports && sports.length > 0 && !selectedSport) {

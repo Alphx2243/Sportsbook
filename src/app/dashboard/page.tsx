@@ -18,7 +18,7 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import ExtendTimerModal from '@/components/ui/ExtendTimerModal';
 import { expireBooking, getBookings, requestReturn } from '@/actions/bookings';
-import { useSocket } from '@/hooks/useSocket';
+// import { useSocket } from '@/hooks/useSocket';
 
 interface Booking {
     id: string;
@@ -43,9 +43,9 @@ export default function Dashboard() {
     const [qrUrl, setQrUrl] = useState('');
     const [showExtensionModal, setShowExtensionModal] = useState(false);
 
-    useSocket('dashboard', activeBooking?.sportName, () => {
-        fetchActiveBooking();
-    }, 'availability_changed');
+    // useSocket('dashboard', activeBooking?.sportName, () => {
+    //     fetchActiveBooking();
+    // }, 'availability_changed');
 
     const fetchActiveBooking = useCallback(async () => {
         if (!user?.id) return;

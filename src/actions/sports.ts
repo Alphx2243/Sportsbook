@@ -9,7 +9,7 @@ import { ensureRoles } from '@/lib/auth-utils'
 import { ROLES } from '@/lib/roles'
 import { equipmentList, nonNegativeInt, requiredString } from '@/lib/validation'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, syncCourtsForSport, withSportAvailability } from '@/lib/normalized-data'
-import { notifySportUpdate } from '@/lib/socket-notify'
+// import { notifySportUpdate } from '@/lib/socket-notify'
 
 async function withSportView(sport: any) {
     const { Equipment, ...rest } = sport

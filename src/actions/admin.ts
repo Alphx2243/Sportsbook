@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { equipmentList, matchStatus, nonNegativeInt, requiredString, roleValue } from '@/lib/validation'
 import { ROLES } from '@/lib/roles'
 import { resolveSportByName, syncCourtsForSport, withMatchDisplay, withUserDisplay } from '@/lib/normalized-data'
-import { notifyMatchesUpdate } from '@/lib/socket-notify'
+// import { notifyMatchesUpdate } from '@/lib/socket-notify'
 
 export async function getAdminStats(): Promise<ActionResponse> {
     try {
