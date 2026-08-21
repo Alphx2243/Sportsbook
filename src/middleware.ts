@@ -5,17 +5,37 @@ import { verifyEdgeSessionToken } from '@/lib/edge-auth'
 import { canAccessAdminPath, getDefaultRouteForRole, isPortalRole } from '@/lib/roles'
 
 const allowedOrigins = [
-  'https://sportsbook-admin.onrender.com',
   'http://sportsbook.iiitd.edu.in'
 ];
 
+function nonceHeaders(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' https:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+  ].join('; ');
+  const headers = new Headers(request.headers);
+  headers.set('x-nonce', nonce);
+  headers.set('Content-Security-Policy', csp);
+  return { csp, headers };
+}
+
 
 export async function middleware(request: NextRequest) {
+  const { csp, headers } = nonceHeaders(request);
+
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
     const origin = request.headers.get('origin');
     const isServerAction = request.headers.has('next-action');
     if (!isServerAction && origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse('Forbidden', { status: 403 });
+      return new NextResponse('Forbidden', { status: 403, headers: { 'Content-Security-Policy': csp } });
     }
   }
 
@@ -40,7 +60,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set('Content-Security-Policy', csp);
 
   return response;
 }
@@ -56,5 +77,3 @@ function redirectOrReject(request: NextRequest, redirectPath = '/login') {
   const loginUrl = new URL(redirectPath, request.url);
   return NextResponse.redirect(loginUrl);
 }
-
-
