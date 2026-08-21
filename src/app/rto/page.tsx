@@ -5,7 +5,6 @@ import { useSport } from "@/contexts/SportsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
-import { getFilePreview } from '@/actions/files';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
