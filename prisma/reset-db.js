@@ -57,16 +57,16 @@ const sports = [
 ]
 
 const users = [
-    { name: 'Guard', email: 'guard@iiitd.ac.in', phone: '9810593073', rollNumber: '2024214', role: 'guard', admin: true },
-    { name: 'Facility Manager', email: 'facility.manager@iiitd.ac.in', phone: '9810593074', rollNumber: '2024215', role: 'facility_manager', admin: true },
-    { name: 'Admin', email: 'admin@iiitd.ac.in', phone: '9810593072', rollNumber: '2024213', role: 'Admin', admin: true },
-    { name: 'Kunal Budhiraja', email: 'kunal24313@iiitd.ac.in', phone: '9810593078', rollNumber: '2024313' },
-    { name: 'Alphx', email: 'alphx@iiitd.ac.in', phone: '8700740987', rollNumber: '2024333' },
-    { name: 'Aarav Sharma', email: 'aarav.sharma@iiitd.ac.in', phone: '9811111111', rollNumber: '2024301' },
-    { name: 'Priya Gupta', email: 'priya.gupta@iiitd.ac.in', phone: '9811111112', rollNumber: '2024302' },
-    { name: 'Rohan Verma', email: 'rohan.verma@iiitd.ac.in', phone: '9811111113', rollNumber: '2024303' },
-    { name: 'Sneha Kapoor', email: 'sneha.kapoor@iiitd.ac.in', phone: '9811111114', rollNumber: '2024304' },
-    { name: 'Aditya Singh', email: 'aditya.singh@iiitd.ac.in', phone: '9811111115', rollNumber: '2024305' },
+    // { name: 'Guard', email: 'guard@iiitd.ac.in', phone: '9810593073', rollNumber: '2024214', role: 'guard', admin: true },
+    // { name: 'Facility Manager', email: 'facility.manager@iiitd.ac.in', phone: '9810593074', rollNumber: '2024215', role: 'facility_manager', admin: true },
+    // { name: 'Admin', email: 'admin@iiitd.ac.in', phone: '9810593072', rollNumber: '2024213', role: 'Admin', admin: true },
+    { name: 'Kunal Budhiraja', email: 'kunal24313@iiitd.ac.in', role: 'Admin', phone: '9810593078', rollNumber: '2024313' },
+    // { name: 'Alphx', email: 'alphx@iiitd.ac.in', phone: '8700740987', rollNumber: '2024333' },
+    // { name: 'Aarav Sharma', email: 'aarav.sharma@iiitd.ac.in', phone: '9811111111', rollNumber: '2024301' },
+    // { name: 'Priya Gupta', email: 'priya.gupta@iiitd.ac.in', phone: '9811111112', rollNumber: '2024302' },
+    // { name: 'Rohan Verma', email: 'rohan.verma@iiitd.ac.in', phone: '9811111113', rollNumber: '2024303' },
+    // { name: 'Sneha Kapoor', email: 'sneha.kapoor@iiitd.ac.in', phone: '9811111114', rollNumber: '2024304' },
+    // { name: 'Aditya Singh', email: 'aditya.singh@iiitd.ac.in', phone: '9811111115', rollNumber: '2024305' },
 ]
 
 async function main() {
@@ -111,7 +111,6 @@ async function main() {
         sportByName.set(created.name, created)
         console.log(`Created sport: ${created.name}`)
     }
-    return;
     const userByEmail = new Map()
     for (const user of users) {
         const created = await prisma.user.create({
@@ -120,12 +119,13 @@ async function main() {
                 email: user.email,
                 phone: user.phone,
                 rollNumber: user.rollNumber,
-                role: user.role || 'user',
+                role: user.role,
             },
         })
         userByEmail.set(created.email, created)
         console.log(`Created user: ${created.name}`)
     }
+    return;
 
     await seedCompletedBookings(sportByName, userByEmail, qrSecret)
     console.log('Database reset complete!')
