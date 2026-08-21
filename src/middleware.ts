@@ -9,6 +9,13 @@ const allowedOrigins = [
   'http://sportsbook.iiitd.edu.in'
 ];
 
+function shouldUseHttps(request: NextRequest) {
+  const host = request.headers.get('host');
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const protocol = forwardedProto ?? request.nextUrl.protocol.replace(':', '');
+  return host === 'sportsbook.iiitd.edu.in' && protocol === 'http';
+}
+
 function createNonce() {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -54,6 +61,12 @@ function applySecurityHeaders(response: NextResponse, csp: string) {
 
 
 export async function middleware(request: NextRequest) {
+  if (shouldUseHttps(request)) {
+    const url = request.nextUrl.clone();
+    url.protocol = 'https:';
+    return NextResponse.redirect(url, 308);
+  }
+
   const { csp, headers } = nonceHeaders(request);
 
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
