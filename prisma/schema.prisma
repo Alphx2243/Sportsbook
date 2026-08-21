@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  user
+  Admin
+  guard
+  facility_manager
+}
+
+enum BookingStatus {
+  pending
+  active
+  returned
+  expired
+  completed
+}
+
+enum MatchStatus {
+  live
+  upcoming
+  finished
+}
+
+enum GymLogStatus {
+  active
+  completed
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  googleId         String?   @unique
+  name             String
+  phone            String
+  rollNumber       String
+  qrCodePath       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  role             UserRole  @default(user)
+  bookings         Booking[]
+  gymLogs          GymLog[]
+  sportExperiences UserSportExperience[]
+
+  @@index([role])
+  @@index([rollNumber])
+}
+
+model Sport {
+  id             String      @id @default(uuid())
+  name           String      @unique
+  numberOfCourts Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  maxCapacity    Int?
+  Equipment      Equipment[]
+  courts         Court[]
+  bookings       Booking[]
+  matches        Match[]
+  guideApplications GuideApplication[]
+  userSportExperiences UserSportExperience[]
+  invites        Invite[]
+}
+
+model Booking {
+  id               String             @id @default(uuid())
+  userId           String
+  sportId          String
+  courtId          String?
+  numberOfPlayers  Int
+  startAt          DateTime
+  endAt            DateTime
+  qrDetail         String?
+  qrHash           String?            @unique
+  status           BookingStatus
+  scanned          Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id])
+  sport            Sport              @relation(fields: [sportId], references: [id], onDelete: Restrict)
+  court            Court?             @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  BookingEquipment BookingEquipment[]
+
+  @@index([userId, status])
+  @@index([sportId, status])
+  @@index([courtId])
+  @@index([status, createdAt])
+  @@index([startAt, status])
+  @@index([sportId, startAt])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  sportId   String
+  team1     String
+  team2     String
+  score1    String
+  score2    String
+  status    MatchStatus
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sport     Sport    @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  @@index([sportId, status])
+  @@index([status, updatedAt])
+}
+
+model GuideApplication {
+  id          String   @id @default(uuid())
+  email       String
+  option      String
+  sportId     String
+  level       String?
+  resolved    Boolean  @default(false)
+  time        String?
+  description String?
+  avDays      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sport       Sport    @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([resolved, createdAt])
+  @@index([sportId, resolved])
+}
+
+model Invite {
+  id           String   @id @default(uuid())
+  sportId      String
+  venue        String
+  scheduledAt  DateTime
+  email        String
+  name         String
+  mobileNumber String
+  show         Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sportRef     Sport    @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([show, scheduledAt])
+  @@index([sportId, scheduledAt])
+}
+
+model GymLog {
+  id        String    @id @default(uuid())
+  userId    String
+  entryTime DateTime  @default(now())
+  exitTime  DateTime?
+  duration  Float?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+  status    GymLogStatus @default(active)
+
+  @@index([userId, status])
+  @@index([status, entryTime])
+}
+
+model BookingEquipment {
+  id          String    @id
+  bookingId   String
+  equipmentId String
+  count       Int       @default(1)
+  Booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  Equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, equipmentId])
+  @@index([equipmentId])
+}
+
+model Court {
+  id           String    @id @default(uuid())
+  sportId      String
+  name         String
+  courtNumber  Int?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+
+  @@unique([sportId, name])
+  @@unique([sportId, courtNumber])
+  @@index([sportId, isActive])
+}
+
+model Equipment {
+  id               String             @id
+  name             String
+  total            Int                @default(0)
+  inUse            Int                @default(0)
+  sportId          String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime
+  BookingEquipment BookingEquipment[]
+  Sport            Sport              @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([sportId, name])
+  @@index([sportId])
+}
+
+model UserSportExperience {
+  id        String   @id @default(uuid())
+  userId    String
+  sportId   String
+  level     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sport     Sport    @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sportId])
+  @@index([sportId])
+}
