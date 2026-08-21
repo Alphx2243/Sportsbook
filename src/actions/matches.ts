@@ -47,7 +47,7 @@ export async function createMatch(data: any): Promise<ActionResponse> {
             },
         })
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return ok(withMatchDisplay({ ...match, sport }))
     }
     catch (error: any) {
@@ -68,7 +68,7 @@ export async function updateMatch(id: string, data: any): Promise<ActionResponse
             },
         })
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return ok(match)
     }
     catch (error: any) {
@@ -82,7 +82,7 @@ export async function deleteMatch(id: string): Promise<ActionResponse> {
         await ensureAdmin()
         await prisma.match.delete({ where: { id } })
         revalidatePath('/live-scores')
-        await notifyMatchesUpdate();
+        // await notifyMatchesUpdate();
         return ok(null)
     }
     catch (error: any) {

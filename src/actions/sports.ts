@@ -121,7 +121,7 @@ export async function createSport(data: any): Promise<ActionResponse> {
         })
         revalidatePath('/')
         revalidatePath('/admin/sports')
-        await notifySportUpdate(sport.name)
+        // await notifySportUpdate(sport.name)
         return ok(sport)
     }
     catch (error: any) {

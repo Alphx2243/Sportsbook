@@ -47,7 +47,7 @@ export async function createBooking(data: CreateBookingInput): Promise<ActionRes
             })
         })
         revalidatePath('/')
-        await notifySportUpdate(data.sportName, 'availability_changed');
+        // await notifySportUpdate(data.sportName, 'availability_changed');
         return ok(withBookingDisplay(result))
     }
     catch (error: any) {
@@ -84,7 +84,7 @@ export async function updateBooking(id: string, data: UpdateBookingInput): Promi
             include: { sport: true, court: true },
         })
         revalidatePath('/')
-        await notifySportUpdate(data.sportName || existing.sport?.name, 'availability_changed');
+        // await notifySportUpdate(data.sportName || existing.sport?.name, 'availability_changed');
         return ok(withBookingDisplay(booking))
     }
     catch (error: any) {
@@ -98,7 +98,7 @@ export async function deleteBooking(id: string): Promise<ActionResponse> {
         const booking = await assertBookingAccess(id)
         await prisma.booking.delete({ where: { id } })
         revalidatePath('/')
-        await notifySportUpdate(booking.sport?.name || '', 'availability_changed');
+        // await notifySportUpdate(booking.sport?.name || '', 'availability_changed');
         return ok(null)
     }
     catch (error: any) {
@@ -221,7 +221,7 @@ export async function expireBooking(bookingId: string): Promise<ActionResponse> 
 
         const bookingForSport: any = await prisma.booking.findUnique({ where: { id: bookingId }, include: { sport: true } });
         if (bookingForSport) {
-            await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
+            // await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
         }
 
         return ok(null)
@@ -265,7 +265,7 @@ export async function completeBooking(bookingId: string): Promise<ActionResponse
 
         const bookingForSport: any = await prisma.booking.findUnique({ where: { id: bookingId }, include: { sport: true } });
         if (bookingForSport) {
-            await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
+            // await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
         }
 
         return ok(null)
@@ -298,7 +298,7 @@ export async function requestReturn(bookingId: string): Promise<ActionResponse> 
 
         const bookingForSport: any = await prisma.booking.findUnique({ where: { id: bookingId }, include: { sport: true } });
         if (bookingForSport) {
-            await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
+            // await notifySportUpdate(bookingForSport.sport.name, 'availability_changed');
         }
 
         return ok(null)
@@ -379,7 +379,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
             });
         })
         revalidatePath('/')
-        await notifySportUpdate(data.sportName, 'availability_changed');
+        // await notifySportUpdate(data.sportName, 'availability_changed');
         return ok(withBookingDisplay(result))
     }
     catch (error: any) {
@@ -432,7 +432,7 @@ export async function activateBooking(qrData: string): Promise<ActionResponse> {
         })
 
         revalidatePath('/admin/bookings')
-        await notifySportUpdate(result.sport.name, 'availability_changed')
+        // await notifySportUpdate(result.sport.name, 'availability_changed')
         return ok(withBookingDisplay(result))
     } catch (error: any) {
         console.error('Activate booking error:', error)
