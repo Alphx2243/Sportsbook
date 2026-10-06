@@ -80,9 +80,3 @@ npm run dev
 ```
 
 Note: Ensure the standalone Socket Server is also running to enable real-time features.
-
-## Test Credentials
-
-### User Access
-- **Email**: kunal24313@iiitd.ac.in
-- **Password**: aforapple
