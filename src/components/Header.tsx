@@ -30,7 +30,7 @@ export default function Navbar() {
   const adminRef = useRef(null)
   const mobileRef = useRef(null)
 
-  const menuItems = ['Dashboard', 'Live Scores']
+  const menuItems = ['Dashboard', 'Live Scores', 'Feedback']
   const adminLinks = getAdminNavLinks(user?.role)
   const facilities = ['Book Court', 'Past-Bookings', 'RTO', 'SG' , 'Gym-bookings']
 
