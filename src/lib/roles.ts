@@ -28,7 +28,6 @@ export const ADMIN_NAV_LINKS = [
   { name: 'Users', path: '/admin/users', roles: [ROLES.ADMIN] },
   { name: 'Sports & Facilities', path: '/admin/sports', roles: [ROLES.ADMIN, ROLES.FACILITY_MANAGER] },
   { name: 'Match Scoring', path: '/admin/matches', roles: [ROLES.ADMIN, ROLES.FACILITY_MANAGER] },
-  { name: 'Gym Scanner', path: '/gym-scanner', roles: [ROLES.ADMIN, ROLES.GUARD] },
 ] as const
 
 export function normalizeRole(role: unknown): AppRole {

@@ -15,38 +15,11 @@ export async function handleGymScan(userId: string): Promise<ActionResponse> {
                 return fail(new Error('User not found')) as ActionResponse;
             }
 
-            const activeLog = await tx.gymLog.findFirst({
-                where: { userId: userId, exitTime: null }
-            });
+            const activeLog = await tx.gymLog.findFirst({ where: { userId, exitTime: null } });
+            if (activeLog) return fail(new Error('This student already has an active gym booking.')) as ActionResponse;
 
-            if (activeLog) {
-                const exitTime = new Date();
-                const entryTime = new Date(activeLog.entryTime);
-                const durationMs = exitTime.getTime() - entryTime.getTime();
-                const durationHours = parseFloat((durationMs / (1000 * 60 * 60)).toFixed(2));
-
-                const updatedLog = await tx.gymLog.update({
-                    where: { id: activeLog.id },
-                    data: { status: 'completed', exitTime, duration: durationHours, updatedAt: exitTime }
-                });
-
-                return ok({
-                    type: 'check-out',
-                    user: user.name,
-                    duration: durationHours,
-                    log: updatedLog
-                }) as ActionResponse;
-            } else {
-                const newLog = await tx.gymLog.create({
-                    data: { userId: userId, entryTime: new Date() }
-                });
-
-                return ok({
-                    type: 'check-in',
-                    user: user.name,
-                    log: newLog
-                }) as ActionResponse;
-            }
+            const newLog = await tx.gymLog.create({ data: { userId, entryTime: new Date() } });
+            return ok({ type: 'check-in', user: user.name, log: newLog }) as ActionResponse;
         }, interactiveTransactionOptions);
     }
     catch (error: any) {

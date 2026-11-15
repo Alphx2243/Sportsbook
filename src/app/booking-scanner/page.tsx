@@ -8,33 +8,32 @@ import {
     QrCode, Upload, Clock, RefreshCw, User
 } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { activateBooking, completeBooking, getBookings } from '@/actions/bookings'
+import { AddGymQRLog, activateBooking, completeBooking, endGymBooking, getActiveGymBookings, getBookings } from '@/actions/bookings'
 import jsQR from 'jsqr'
-import { useAuth } from '@/contexts/AuthContext'
-import { normalizeRole, ROLES } from '@/lib/roles'
 
 export default function BookingScannerPage() {
-    const { user } = useAuth()
     const [isScanning, setIsScanning] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const [result, setResult] = useState<any>(null)
     const [error, setError] = useState('')
     const [manualCode, setManualCode] = useState('')
     const [bookings, setBookings] = useState<any[]>([])
+    const [activeGymBookings, setActiveGymBookings] = useState<any[]>([])
     const [bookingsLoading, setBookingsLoading] = useState(false)
     const [approvingBookingId, setApprovingBookingId] = useState<string | null>(null)
+    const [endingGymBookingId, setEndingGymBookingId] = useState<string | null>(null)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const isGuard = normalizeRole(user?.role) === ROLES.GUARD
 
     const loadBookings = useCallback(async () => {
         setBookingsLoading(true)
-        const response = await getBookings()
+        const [response, gymResponse] = await Promise.all([getBookings(), getActiveGymBookings()])
         if (response.success) {
             setBookings(response.data.documents.filter((booking: any) =>
                 ['pending', 'active', 'returned', 'expired'].includes(booking.status)
             ))
         }
+        if (gymResponse.success) setActiveGymBookings(gymResponse.data.documents)
         setBookingsLoading(false)
     }, [])
 
@@ -47,11 +46,10 @@ export default function BookingScannerPage() {
     }, [])
 
     useEffect(() => {
-        if (!isGuard) return
         loadBookings()
         const refresh = window.setInterval(loadBookings, 15_000)
         return () => window.clearInterval(refresh)
-    }, [isGuard, loadBookings])
+    }, [loadBookings])
 
     const startScanner = async () => {
         if (isScanning || isProcessing) return
@@ -129,12 +127,13 @@ export default function BookingScannerPage() {
         setIsProcessing(true)
         setError('')
         try {
-            const res = await activateBooking(data)
+            const gymUserId = getGymUserId(data)
+            const res = gymUserId ? await AddGymQRLog(gymUserId) : await activateBooking(data)
             if (res.success) {
-                setResult(res.data)
+                setResult({ ...res.data, type: gymUserId ? 'gym' : 'booking' })
                 loadBookings()
             } else {
-                setError(res.error || 'Failed to activate booking')
+                setError(res.error || (gymUserId ? 'Failed to start gym booking' : 'Failed to activate booking'))
             }
         } catch (err) {
             setError('An unexpected error occurred')
@@ -153,6 +152,19 @@ export default function BookingScannerPage() {
         setApprovingBookingId(null)
     }
 
+    const endGymSession = async (gymLogId: string) => {
+        if (!confirm('End this gym booking?')) return
+        setEndingGymBookingId(gymLogId)
+        const response = await endGymBooking(gymLogId)
+        if (response.success) {
+            setResult({ ...response.data, type: 'gym' })
+            await loadBookings()
+        } else {
+            setError(response.error || 'Failed to end gym booking.')
+        }
+        setEndingGymBookingId(null)
+    }
+
     return (
         <main className="min-h-screen bg-background text-foreground py-24 px-6 md:px-12">
             <div className="max-w-4xl mx-auto">
@@ -168,7 +180,7 @@ export default function BookingScannerPage() {
                         Booking Activator
                     </h1> */}
                     <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto">
-                        Scan player QR codes to start their session timers and track attendance.
+                        Scan a court booking to activate it, or scan a gym QR once when a student enters.
                     </p>
                 </header>
 
@@ -233,7 +245,7 @@ export default function BookingScannerPage() {
                                 QR or Manual Code
                             </h3>
                             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm font-medium text-gray-400 space-y-4">
-                                {/* <p>Scan the signed QR, or enter the manual booking code shown below the student&apos;s QR.</p> */}
+                                <p>Gym QR codes start entry only. End an active gym booking from the list below.</p>
                                 <form
                                     className="flex flex-col sm:flex-row gap-3"
                                     onSubmit={async (event) => {
@@ -290,28 +302,30 @@ export default function BookingScannerPage() {
                                             <CheckCircle2 className="w-8 h-8" />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-white italic">Activation Success!</h3>
-                                            <p className="text-green-500/60 text-xs font-bold uppercase tracking-widest">Session Started</p>
+                                            <h3 className="text-xl font-black text-white italic">{result.type === 'gym' ? result.message : 'Activation Success!'}</h3>
+                                            <p className="text-green-500/60 text-xs font-bold uppercase tracking-widest">{result.type === 'gym' ? (result.action === 'finished' ? 'Gym session ended' : 'Gym session started') : 'Session Started'}</p>
                                         </div>
                                     </div>
 
                                     <div className="space-y-4 relative z-10">
-                                        <div className="flex justify-between items-center py-3 border-b border-white/5">
-                                            <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Sport</span>
-                                            <span className="font-black text-white">{result.sportName}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-3 border-b border-white/5">
-                                            <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Court</span>
-                                            <span className="font-black text-primary">#{result.courtNo}</span>
-                                        </div>
+                                        {result.type !== 'gym' && <>
+                                            <div className="flex justify-between items-center py-3 border-b border-white/5">
+                                                <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Sport</span>
+                                                <span className="font-black text-white">{result.sportName}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-3 border-b border-white/5">
+                                                <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Court</span>
+                                                <span className="font-black text-primary">#{result.courtNo}</span>
+                                            </div>
+                                        </>}
                                         <div className="grid grid-cols-2 gap-4 pt-2">
                                             <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                                <p className="text-gray-500 text-[10px] uppercase font-black mb-1">Start</p>
-                                                <p className="font-bold text-lg">{result.startTime}</p>
+                                                <p className="text-gray-500 text-[10px] uppercase font-black mb-1">{result.type === 'gym' ? 'Entry' : 'Start'}</p>
+                                                <p className="font-bold text-lg">{result.type === 'gym' ? result.entryTime : result.startTime}</p>
                                             </div>
                                             <div className="p-4 bg-primary/20 rounded-2xl border border-primary/20">
-                                                <p className="text-primary/60 text-[10px] uppercase font-black mb-1">End</p>
-                                                <p className="font-bold text-lg text-primary">{result.endTime}</p>
+                                                <p className="text-primary/60 text-[10px] uppercase font-black mb-1">{result.type === 'gym' ? 'Exit' : 'End'}</p>
+                                                <p className="font-bold text-lg text-primary">{result.type === 'gym' ? result.exitTime || 'Active' : result.endTime}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -321,8 +335,40 @@ export default function BookingScannerPage() {
                     </div>
                 </div>
 
-                {isGuard && (
-                    <section className="mt-12 border-t border-white/10 pt-10">
+                <section className="mt-12 border-t border-white/10 pt-10">
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold">Active Gym Bookings</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">Students scanned in at the gym entrance.</p>
+                    </div>
+                    {activeGymBookings.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            {activeGymBookings.map((booking) => (
+                                <article key={booking.id} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-lg font-bold">{booking.user?.name || 'Unknown student'}</p>
+                                            <p className="text-sm text-muted-foreground">{booking.user?.rollNumber || 'No roll number'}</p>
+                                        </div>
+                                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold uppercase text-emerald-500">Active</span>
+                                    </div>
+                                    <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4 text-primary" />Entered at {new Date(booking.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => endGymSession(booking.id)}
+                                        disabled={endingGymBookingId === booking.id}
+                                        className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                    >
+                                        {endingGymBookingId === booking.id ? 'Ending…' : 'End booking'}
+                                    </button>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No active gym bookings.</p>
+                    )}
+                </section>
+
+                <section className="mt-12 border-t border-white/10 pt-10">
                         <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-2xl font-bold">Open Bookings</h2>
@@ -372,8 +418,7 @@ export default function BookingScannerPage() {
                         ) : (
                             <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No open bookings.</p>
                         )}
-                    </section>
-                )}
+                </section>
             </div>
             <div
                 id="reader-hidden"
@@ -389,6 +434,16 @@ function createQrScanner(elementId: string) {
         useBarCodeDetectorIfSupported: true,
         verbose: false,
     })
+}
+
+function getGymUserId(data: string) {
+    const value = data.trim()
+    try {
+        const parsed = JSON.parse(value)
+        if (typeof parsed.gymId === 'string') return parsed.gymId
+    } catch {
+    }
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null
 }
 
 async function decodeQrImage(scanner: Html5Qrcode, file: File) {

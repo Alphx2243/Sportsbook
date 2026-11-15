@@ -458,17 +458,7 @@ export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
                 }
             })
             if (existingLog) {
-                const durationHours = parseFloat(((now.getTime() - new Date(existingLog.entryTime).getTime()) / (1000 * 60 * 60)).toFixed(2))
-                const log = await tx.gymLog.update({
-                    where: { id: existingLog.id },
-                    data: {
-                        status: 'completed',
-                        exitTime: now,
-                        duration: durationHours,
-                        updatedAt: now,
-                    }
-                })
-                return withGymScanDisplay('finished', log)
+                throw new Error('This student already has an active gym booking. Use End booking to finish it.')
             }
 
             const conflictingBooking = await tx.booking.findFirst({
@@ -491,7 +481,7 @@ export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
             })
             return withGymScanDisplay('created', log)
         }, interactiveTransactionOptions)
-        revalidatePath('/gym-scanner')
+        revalidatePath('/booking-scanner')
         revalidatePath('/dashboard')
         revalidatePath('/rto')
         return ok(result)
@@ -499,6 +489,48 @@ export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
     catch (error: any) {
         console.error('Error in AddGymQRLog: ', error)
         return fail(error, 'Failed to process gym QR')
+    }
+}
+
+export async function getActiveGymBookings(): Promise<ActionResponse<{ documents: any[] }>> {
+    try {
+        await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
+        const logs = await prisma.gymLog.findMany({
+            where: { status: 'active', exitTime: null },
+            orderBy: { entryTime: 'asc' },
+            include: { user: { select: bookingUserSelect } },
+        })
+        return ok({ documents: logs })
+    }
+    catch (error: any) {
+        console.error('Get active gym bookings error:', error)
+        return fail(error, 'Failed to get active gym bookings')
+    }
+}
+
+export async function endGymBooking(gymLogId: string): Promise<ActionResponse> {
+    try {
+        await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
+        const now = getISTDate()
+        const log = await prisma.$transaction(async (tx: any) => {
+            const [activeLog]: any = await tx.$queryRaw`SELECT * FROM "GymLog" WHERE "id" = ${gymLogId} FOR UPDATE`
+            if (!activeLog || activeLog.status !== 'active' || activeLog.exitTime) {
+                throw new Error('Gym booking is not active.')
+            }
+            const duration = parseFloat(((now.getTime() - new Date(activeLog.entryTime).getTime()) / (1000 * 60 * 60)).toFixed(2))
+            return tx.gymLog.update({
+                where: { id: gymLogId },
+                data: { status: 'completed', exitTime: now, duration, updatedAt: now },
+            })
+        }, interactiveTransactionOptions)
+        revalidatePath('/booking-scanner')
+        revalidatePath('/dashboard')
+        revalidatePath('/rto')
+        return ok(withGymScanDisplay('finished', log))
+    }
+    catch (error: any) {
+        console.error('End gym booking error:', error)
+        return fail(error, 'Failed to end gym booking')
     }
 }
 
