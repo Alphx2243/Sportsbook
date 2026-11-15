@@ -17,7 +17,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import ExtendTimerModal from '@/components/ui/ExtendTimerModal';
-import { deleteBooking, expireBooking, getBookings, requestReturn } from '@/actions/bookings';
+import { deleteBooking, endGymBooking, expireBooking, getBookings, requestReturn } from '@/actions/bookings';
 import { getGymBookings } from '@/actions/gym';
 // import { useSocket } from '@/hooks/useSocket';
 
@@ -52,6 +52,7 @@ export default function Dashboard() {
     const [qrUrl, setQrUrl] = useState('');
     const [showExtensionModal, setShowExtensionModal] = useState(false);
     const [gymElapsed, setGymElapsed] = useState('');
+    const [endingGymSession, setEndingGymSession] = useState(false);
 
     // useSocket('dashboard', activeBooking?.sportName, () => {
     //     fetchActiveBooking();
@@ -430,12 +431,29 @@ export default function Dashboard() {
                                             <div>
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Active Booking</p>
                                                 <h2 className="text-3xl font-black">Gym Session</h2>
-                                                <p className="text-sm text-muted-foreground">Scan your Gym QR again at the exit to finish.</p>
+                                                <p className="text-sm text-muted-foreground">End your session here when you leave the gym.</p>
                                             </div>
                                         </div>
                                         <div className="text-center sm:text-right">
                                             <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Session Time</p>
                                             <p className="text-4xl font-black tracking-tighter text-emerald-500">{gymElapsed}</p>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={endingGymSession}
+                                                className="mt-3 text-emerald-500 hover:bg-emerald-500/10 border border-emerald-500/20"
+                                                onClick={async () => {
+                                                    if (!confirm('End your gym booking?')) return;
+                                                    setEndingGymSession(true);
+                                                    const result = await endGymBooking(activeGymSession.id);
+                                                    if (!result.success) alert(result.error);
+                                                    await fetchActiveBooking();
+                                                    setEndingGymSession(false);
+                                                }}
+                                            >
+                                                <LogOut className="w-4 h-4 mr-2" />
+                                                {endingGymSession ? 'Ending…' : 'End Gym Booking'}
+                                            </Button>
                                         </div>
                                     </div>
                                 </motion.div>

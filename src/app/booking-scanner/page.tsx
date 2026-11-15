@@ -8,7 +8,7 @@ import {
     QrCode, Upload, Clock, RefreshCw, User
 } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { AddGymQRLog, activateBooking, completeBooking, endGymBooking, getActiveGymBookings, getBookings } from '@/actions/bookings'
+import { AddGymQRLog, activateBooking, completeBooking, getBookings } from '@/actions/bookings'
 import jsQR from 'jsqr'
 
 export default function BookingScannerPage() {
@@ -18,22 +18,19 @@ export default function BookingScannerPage() {
     const [error, setError] = useState('')
     const [manualCode, setManualCode] = useState('')
     const [bookings, setBookings] = useState<any[]>([])
-    const [activeGymBookings, setActiveGymBookings] = useState<any[]>([])
     const [bookingsLoading, setBookingsLoading] = useState(false)
     const [approvingBookingId, setApprovingBookingId] = useState<string | null>(null)
-    const [endingGymBookingId, setEndingGymBookingId] = useState<string | null>(null)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const loadBookings = useCallback(async () => {
         setBookingsLoading(true)
-        const [response, gymResponse] = await Promise.all([getBookings(), getActiveGymBookings()])
+        const response = await getBookings()
         if (response.success) {
             setBookings(response.data.documents.filter((booking: any) =>
                 ['pending', 'active', 'returned', 'expired'].includes(booking.status)
             ))
         }
-        if (gymResponse.success) setActiveGymBookings(gymResponse.data.documents)
         setBookingsLoading(false)
     }, [])
 
@@ -152,19 +149,6 @@ export default function BookingScannerPage() {
         setApprovingBookingId(null)
     }
 
-    const endGymSession = async (gymLogId: string) => {
-        if (!confirm('End this gym booking?')) return
-        setEndingGymBookingId(gymLogId)
-        const response = await endGymBooking(gymLogId)
-        if (response.success) {
-            setResult({ ...response.data, type: 'gym' })
-            await loadBookings()
-        } else {
-            setError(response.error || 'Failed to end gym booking.')
-        }
-        setEndingGymBookingId(null)
-    }
-
     return (
         <main className="min-h-screen bg-background text-foreground py-24 px-6 md:px-12">
             <div className="max-w-4xl mx-auto">
@@ -245,7 +229,7 @@ export default function BookingScannerPage() {
                                 QR or Manual Code
                             </h3>
                             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm font-medium text-gray-400 space-y-4">
-                                <p>Gym QR codes start entry only. End an active gym booking from the list below.</p>
+                                <p>Gym QR codes start entry only. Students end their active gym booking from their dashboard.</p>
                                 <form
                                     className="flex flex-col sm:flex-row gap-3"
                                     onSubmit={async (event) => {
@@ -334,39 +318,6 @@ export default function BookingScannerPage() {
                         </AnimatePresence>
                     </div>
                 </div>
-
-                <section className="mt-12 border-t border-white/10 pt-10">
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-bold">Active Gym Bookings</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">Students scanned in at the gym entrance.</p>
-                    </div>
-                    {activeGymBookings.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            {activeGymBookings.map((booking) => (
-                                <article key={booking.id} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-lg font-bold">{booking.user?.name || 'Unknown student'}</p>
-                                            <p className="text-sm text-muted-foreground">{booking.user?.rollNumber || 'No roll number'}</p>
-                                        </div>
-                                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold uppercase text-emerald-500">Active</span>
-                                    </div>
-                                    <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4 text-primary" />Entered at {new Date(booking.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                    <button
-                                        type="button"
-                                        onClick={() => endGymSession(booking.id)}
-                                        disabled={endingGymBookingId === booking.id}
-                                        className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                                    >
-                                        {endingGymBookingId === booking.id ? 'Ending…' : 'End booking'}
-                                    </button>
-                                </article>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No active gym bookings.</p>
-                    )}
-                </section>
 
                 <section className="mt-12 border-t border-white/10 pt-10">
                         <div className="mb-6 flex items-center justify-between gap-4">

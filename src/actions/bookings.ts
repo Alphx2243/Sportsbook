@@ -492,31 +492,16 @@ export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
     }
 }
 
-export async function getActiveGymBookings(): Promise<ActionResponse<{ documents: any[] }>> {
-    try {
-        await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
-        const logs = await prisma.gymLog.findMany({
-            where: { status: 'active', exitTime: null },
-            orderBy: { entryTime: 'asc' },
-            include: { user: { select: bookingUserSelect } },
-        })
-        return ok({ documents: logs })
-    }
-    catch (error: any) {
-        console.error('Get active gym bookings error:', error)
-        return fail(error, 'Failed to get active gym bookings')
-    }
-}
-
 export async function endGymBooking(gymLogId: string): Promise<ActionResponse> {
     try {
-        await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
+        const actor = await requireUser()
         const now = getISTDate()
         const log = await prisma.$transaction(async (tx: any) => {
             const [activeLog]: any = await tx.$queryRaw`SELECT * FROM "GymLog" WHERE "id" = ${gymLogId} FOR UPDATE`
             if (!activeLog || activeLog.status !== 'active' || activeLog.exitTime) {
                 throw new Error('Gym booking is not active.')
             }
+            if (activeLog.userId !== actor.id) throw new Error('You can only end your own gym booking.')
             const duration = parseFloat(((now.getTime() - new Date(activeLog.entryTime).getTime()) / (1000 * 60 * 60)).toFixed(2))
             return tx.gymLog.update({
                 where: { id: gymLogId },
@@ -570,7 +555,7 @@ async function assertNoActiveGymSession(tx: any, userId: string) {
         select: { id: true },
     })
     if (activeGymSession) {
-        throw new Error('You cannot make a sports booking while your Gym session is active. Please scan out of the Gym first.')
+        throw new Error('You cannot make a sports booking while your Gym session is active. Please end your Gym booking first.')
     }
 }
 
