@@ -2,7 +2,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyEdgeSessionToken } from '@/lib/edge-auth'
-import { canAccessAdminPath, getDefaultRouteForRole, isPortalRole } from '@/lib/roles'
+import { canAccessAdminPath, getDefaultRouteForRole, isPortalRole, normalizeRole, ROLES } from '@/lib/roles'
+
+const GUARD_RESTRICTED_PATHS = ['/dashboard', '/live-scores', '/feedback', '/book-court', '/past-bookings', '/rto', '/sg', '/gym-bookings']
 
 function isAllowedOrigin(origin: string | null, request: NextRequest) {
   if (!origin || origin === request.nextUrl.origin) return true;
@@ -113,6 +115,20 @@ export async function middleware(request: NextRequest) {
       }
     } catch {
       return redirectOrReject(request, csp);
+    }
+  }
+
+  if (GUARD_RESTRICTED_PATHS.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`))) {
+    const session = request.cookies.get('session')?.value
+    if (session) {
+      try {
+        const payload = await verifyEdgeSessionToken(session)
+        if (payload.userId && normalizeRole(payload.role) === ROLES.GUARD) {
+          return redirectOrReject(request, csp, '/booking-scanner')
+        }
+      } catch {
+        // The page remains public if the session is invalid; protected server actions still require authentication.
+      }
     }
   }
 

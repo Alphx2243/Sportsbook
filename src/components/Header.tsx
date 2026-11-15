@@ -9,7 +9,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
-import { getAdminNavLinks } from '@/lib/roles'
+import { getAdminNavLinks, normalizeRole, ROLES } from '@/lib/roles'
 import LogoutModal from './ui/LogoutModal'
 import Button from './ui/Button'
 
@@ -33,6 +33,7 @@ export default function Navbar() {
   const menuItems = ['Dashboard', 'Live Scores', 'Feedback']
   const adminLinks = getAdminNavLinks(user?.role)
   const facilities = ['Book Court', 'Past-Bookings', 'RTO', 'SG' , 'Gym-bookings']
+  const isGuard = normalizeRole(user?.role) === ROLES.GUARD
 
   useEffect(() => {
     const generateQR = async () => {
@@ -105,7 +106,7 @@ export default function Navbar() {
               SportsBook
             </Link>
             <div className="hidden md:flex ml-10 space-x-6 items-center">
-              {menuItems.map(item => (
+              {!isGuard && menuItems.map(item => (
                 <button
                   key={item}
                   onClick={() => navigateTo(formatPath(item))}
@@ -115,7 +116,7 @@ export default function Navbar() {
                 </button>
               ))}
 
-              <div className="relative" ref={desktopRef}>
+              {!isGuard && <div className="relative" ref={desktopRef}>
                 <button
                   onClick={toggleDesktopDropdown}
                   className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200 cursor-pointer"
@@ -144,7 +145,7 @@ export default function Navbar() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
+              </div>}
               {adminLinks.length > 0 && (
                 <div className="relative" ref={adminRef}>
                   <button
@@ -178,7 +179,7 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               )}
-              {user && (
+              {user && !isGuard && (
                 <div className="relative flex items-center">
                   <button
                     onClick={() => setShowQr(s => !s)}
@@ -257,7 +258,7 @@ export default function Navbar() {
             className="md:hidden glass-panel border-t border-white/10 overflow-hidden"
           >
             <div className="px-4 pt-4 pb-6 space-y-2 max-h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
-              {menuItems.map(item => (
+              {!isGuard && menuItems.map(item => (
                 <button
                   key={item}
                   onClick={() => {
@@ -270,7 +271,7 @@ export default function Navbar() {
                 </button>
               ))}
 
-              <div className="relative" ref={mobileRef}>
+              {!isGuard && <div className="relative" ref={mobileRef}>
                 <button
                   onClick={toggleMobileDropdown}
                   className="w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-primary hover:bg-primary/10"
@@ -299,7 +300,7 @@ export default function Navbar() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
+              </div>}
               {adminLinks.map(link => (
                 <Link
                   key={link.path}
@@ -310,7 +311,7 @@ export default function Navbar() {
                   {link.name}
                 </Link>
               ))}
-              {user && (
+              {user && !isGuard && (
                 <div className="relative">
                   <button
                     onClick={() => setShowQr(s => !s)}
