@@ -1,24 +1,42 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
     CheckCircle2,
     AlertCircle, Camera, Info,
-    QrCode, Upload
+    QrCode, Upload, Clock, RefreshCw, User
 } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { activateBooking } from '@/actions/bookings'
+import { activateBooking, completeBooking, getBookings } from '@/actions/bookings'
 import jsQR from 'jsqr'
+import { useAuth } from '@/contexts/AuthContext'
+import { normalizeRole, ROLES } from '@/lib/roles'
 
 export default function BookingScannerPage() {
+    const { user } = useAuth()
     const [isScanning, setIsScanning] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const [result, setResult] = useState<any>(null)
     const [error, setError] = useState('')
     const [manualCode, setManualCode] = useState('')
+    const [bookings, setBookings] = useState<any[]>([])
+    const [bookingsLoading, setBookingsLoading] = useState(false)
+    const [approvingBookingId, setApprovingBookingId] = useState<string | null>(null)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const isGuard = normalizeRole(user?.role) === ROLES.GUARD
+
+    const loadBookings = useCallback(async () => {
+        setBookingsLoading(true)
+        const response = await getBookings()
+        if (response.success) {
+            setBookings(response.data.documents.filter((booking: any) =>
+                ['pending', 'active', 'returned', 'expired'].includes(booking.status)
+            ))
+        }
+        setBookingsLoading(false)
+    }, [])
 
     useEffect(() => {
         return () => {
@@ -27,6 +45,13 @@ export default function BookingScannerPage() {
         }
         }
     }, [])
+
+    useEffect(() => {
+        if (!isGuard) return
+        loadBookings()
+        const refresh = window.setInterval(loadBookings, 15_000)
+        return () => window.clearInterval(refresh)
+    }, [isGuard, loadBookings])
 
     const startScanner = async () => {
         if (isScanning || isProcessing) return
@@ -107,6 +132,7 @@ export default function BookingScannerPage() {
             const res = await activateBooking(data)
             if (res.success) {
                 setResult(res.data)
+                loadBookings()
             } else {
                 setError(res.error || 'Failed to activate booking')
             }
@@ -116,6 +142,15 @@ export default function BookingScannerPage() {
         } finally {
             setIsProcessing(false)
         }
+    }
+
+    const approveReturn = async (bookingId: string) => {
+        if (!confirm('Approve the equipment return and complete this booking?')) return
+        setApprovingBookingId(bookingId)
+        const response = await completeBooking(bookingId)
+        if (response.success) await loadBookings()
+        else setError(response.error || 'Failed to approve the return.')
+        setApprovingBookingId(null)
     }
 
     return (
@@ -285,6 +320,60 @@ export default function BookingScannerPage() {
                         </AnimatePresence>
                     </div>
                 </div>
+
+                {isGuard && (
+                    <section className="mt-12 border-t border-white/10 pt-10">
+                        <div className="mb-6 flex items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold">Open Bookings</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">Pending scans, active sessions, and bookings awaiting return approval.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={loadBookings}
+                                disabled={bookingsLoading}
+                                className="rounded-xl border border-white/10 p-3 text-primary hover:bg-primary/10 disabled:opacity-50"
+                                aria-label="Refresh open bookings"
+                            >
+                                <RefreshCw className={`h-5 w-5 ${bookingsLoading ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
+
+                        {bookings.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {bookings.map((booking) => (
+                                    <article key={booking.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-lg font-bold">{booking.sportName}</p>
+                                                <p className="text-sm text-muted-foreground">Court {booking.courtNo || '—'} · Code {booking.bookingCode}</p>
+                                            </div>
+                                            <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${booking.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : booking.status === 'pending' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-400'}`}>
+                                                {booking.status === 'returned' || booking.status === 'expired' ? 'Return pending' : booking.status}
+                                            </span>
+                                        </div>
+                                        <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                                            <p className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4 text-primary" />{booking.user?.name || 'Unknown'} {booking.user?.rollNumber ? `(${booking.user.rollNumber})` : ''}</p>
+                                            <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4 text-primary" />{booking.date} · {booking.startTime}–{booking.endTime}</p>
+                                        </div>
+                                        {(booking.status === 'returned' || booking.status === 'expired') && (
+                                            <button
+                                                type="button"
+                                                onClick={() => approveReturn(booking.id)}
+                                                disabled={approvingBookingId === booking.id}
+                                                className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                            >
+                                                {approvingBookingId === booking.id ? 'Approving…' : 'Approve Return'}
+                                            </button>
+                                        )}
+                                    </article>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No open bookings.</p>
+                        )}
+                    </section>
+                )}
             </div>
             <div
                 id="reader-hidden"
