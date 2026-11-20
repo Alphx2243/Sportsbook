@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Volleyball, Clock, Calendar, History, TrendingUp, Info } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getGymStats } from '@/actions/gym'
+import ComingSoon from '@/components/ComingSoon'
 
 const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
@@ -181,7 +182,8 @@ function ChooseActivity({ qrCode }: { qrCode: string | null }) {
     )
 }
 
-const Page = () => {
+// The Self Growth implementation is retained for its planned launch.
+const SelfGrowthFeature = () => {
     const { user } = useAuth() as { user: any };
     const [stats, setStats] = useState({
         totalHours: '0.0',
@@ -247,4 +249,6 @@ const Page = () => {
     )
 }
 
-export default Page
+export default function SelfGrowth() {
+    return <ComingSoon feature="Self Growth" />
+}

@@ -250,8 +250,7 @@ export default function Dashboard() {
 
     const quickActions = [
         { title: 'Book a Court', icon: Calendar, href: '/book-court', desc: 'Reserve your spot now' },
-        { title: 'Find Players', icon: Users, href: '/playersearch', desc: 'Build your squad' },
-        { title: 'Live Scores', icon: Activity, href: '/live-scores', desc: 'Track ongoing matches' },
+        // Find Players and Live Scores are retained for their planned launch.
         { title: 'Occupancy', icon: Activity, href: '/rto', desc: 'View real time occupancy' },
     ];
 

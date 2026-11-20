@@ -5,11 +5,13 @@ import { ActionResponse } from '@/interfaces'
 import { fail, ok } from '@/lib/action-response'
 import { ensureSelfOrAdmin } from '@/lib/auth-utils'
 import { dateToDateString, dateToTimeString } from '@/lib/normalized-data'
+import { expireOverdueGymSessions } from '@/lib/gym-session'
 
 export async function handleGymScan(userId: string): Promise<ActionResponse> {
     try {
         await ensureSelfOrAdmin(userId)
         return await prisma.$transaction(async (tx: any) => {
+            await expireOverdueGymSessions(tx)
             const [user]: any = await tx.$queryRaw`SELECT id, name FROM "User" WHERE id = ${userId} FOR UPDATE`;
             if (!user) {
                 return fail(new Error('User not found')) as ActionResponse;
@@ -31,6 +33,7 @@ export async function handleGymScan(userId: string): Promise<ActionResponse> {
 export async function getGymStats(userId: string): Promise<ActionResponse> {
     try {
         await ensureSelfOrAdmin(userId)
+        await expireOverdueGymSessions(prisma)
         const logs = await prisma.gymLog.findMany({
             where: { userId }, orderBy: { entryTime: 'desc' }
         })
@@ -64,6 +67,7 @@ export async function getGymStats(userId: string): Promise<ActionResponse> {
 export async function getGymBookings(userId: string): Promise<ActionResponse> {
     try{
         await ensureSelfOrAdmin(userId)
+        await expireOverdueGymSessions(prisma)
         const logs = await prisma.gymLog.findMany({
             where: { userId }, orderBy: { entryTime: 'desc' }
         });

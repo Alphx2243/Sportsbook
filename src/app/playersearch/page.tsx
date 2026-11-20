@@ -9,7 +9,10 @@ import Currentinvites from "./currentinvites";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { User } from "lucide-react";
-const PlayerSearch = () => {
+import ComingSoon from "@/components/ComingSoon";
+
+// The player-search implementation is retained for its planned launch.
+const PlayerSearchFeature = () => {
   const [activeTab, setActiveTab] = useState("matchmaking");
   const { user, loading } = useAuth() as { user: any; loading: boolean };
 
@@ -72,4 +75,6 @@ const PlayerSearch = () => {
   );
 };
 
-export default PlayerSearch;
+export default function PlayerSearch() {
+  return <ComingSoon feature="Find Players" />;
+}

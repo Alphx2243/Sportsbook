@@ -9,6 +9,7 @@ import { ensureRoles } from '@/lib/auth-utils'
 import { ROLES } from '@/lib/roles'
 import { equipmentList, nonNegativeInt, requiredString } from '@/lib/validation'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, syncCourtsForSport, withSportAvailability } from '@/lib/normalized-data'
+import { expireOverdueGymSessions } from '@/lib/gym-session'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 
 async function withSportView(sport: any) {
@@ -19,6 +20,7 @@ async function withSportView(sport: any) {
 
 export async function getSports(): Promise<ActionResponse<{ documents: any[], total: number }>> {
     try {
+        await expireOverdueGymSessions(prisma)
         const [sports, activeBookings, activeGymPlayers] = await Promise.all([
           prisma.sport.findMany({
             orderBy: { name: 'asc' },
@@ -60,6 +62,7 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
 
 export async function getSport(id: string): Promise<ActionResponse> {
     try {
+        await expireOverdueGymSessions(prisma)
         const sport = await prisma.sport.findUnique({
             where: { id },
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } },

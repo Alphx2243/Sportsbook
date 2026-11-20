@@ -12,6 +12,7 @@ import { bookingStatus, equipmentIssues, positiveInt, requiredString } from '@/l
 import { createBookingQrPayload, parseBookingQrPayload, verifyBookingQrPayload } from '@/lib/booking-qr'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, resolveCourtByNo, resolveSportByName, withBookingDisplay } from '@/lib/normalized-data'
 import { expireOverdueBookings, restoreBookingEquipment } from '@/lib/booking-state'
+import { expireOverdueGymSessions } from '@/lib/gym-session'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 import { formatISTTime, getISTDate } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ export async function createBooking(data: CreateBookingInput): Promise<ActionRes
         await ensureSelfOrAdmin(data.userId)
         const result = await prisma.$transaction(async (tx: any) => {
             await expireOverdueBookings(tx)
+            await expireOverdueGymSessions(tx)
             await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${data.userId} FOR UPDATE`;
 
             await assertNoActiveGymSession(tx, data.userId)
@@ -322,6 +324,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
         const issues = equipmentIssues(data.equipmentsIssued)
         const result = await prisma.$transaction(async (tx: any) => {
             await expireOverdueBookings(tx)
+            await expireOverdueGymSessions(tx)
             await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${data.userId} FOR UPDATE`;
 
             await assertNoActiveGymSession(tx, data.userId)
@@ -450,6 +453,7 @@ export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
         await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
         const now = getISTDate()
         const result = await prisma.$transaction(async (tx: any) => {
+            await expireOverdueGymSessions(tx)
             await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${UserGymId} FOR UPDATE`
             const existingLog = await tx.gymLog.findFirst({
                 where: {
@@ -497,6 +501,7 @@ export async function endGymBooking(gymLogId: string): Promise<ActionResponse> {
         const actor = await requireUser()
         const now = getISTDate()
         const log = await prisma.$transaction(async (tx: any) => {
+            await expireOverdueGymSessions(tx, now)
             const [activeLog]: any = await tx.$queryRaw`SELECT * FROM "GymLog" WHERE "id" = ${gymLogId} FOR UPDATE`
             if (!activeLog || activeLog.status !== 'active' || activeLog.exitTime) {
                 throw new Error('Gym booking is not active.')

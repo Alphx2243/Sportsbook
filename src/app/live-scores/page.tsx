@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Activity, Clock, AlertCircle } from 'lucide-react';
 import { getMatches } from '@/actions/matches';
+import ComingSoon from '@/components/ComingSoon';
 // import { useSocket } from '@/hooks/useSocket';
 
 
@@ -17,7 +18,8 @@ interface Match {
   status: 'live' | 'upcoming' | 'finished';
 }
 
-export default function LiveScoring() {
+// The live-score implementation is retained for its planned launch.
+function LiveScoringFeature() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -194,4 +196,8 @@ function EmptyState({ message }: { message: string }) {
       <p className="text-gray-500 font-light text-lg">{message}</p>
     </div>
   );
+}
+
+export default function LiveScoring() {
+  return <ComingSoon feature="Live Scores" />;
 }

@@ -30,9 +30,11 @@ export default function Navbar() {
   const adminRef = useRef(null)
   const mobileRef = useRef(null)
 
-  const menuItems = ['Dashboard', 'Live Scores', 'Feedback']
+  // 'Live Scores' is retained for its planned launch.
+  const menuItems = ['Dashboard', 'Feedback']
   const adminLinks = getAdminNavLinks(user?.role)
-  const facilities = ['Book Court', 'Past-Bookings', 'RTO', 'SG' , 'Gym-bookings']
+  // 'SG' is retained for its planned launch.
+  const facilities = ['Book Court', 'Past-Bookings', 'Occupancy', 'Gym-bookings']
   const isGuard = normalizeRole(user?.role) === ROLES.GUARD
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function Navbar() {
     return () => window.clearInterval(interval)
   }, [user, isGuard])
 
-  const formatPath = (label: string) => '/' + label.toLowerCase().replace(/ /g, '-')
+  const formatPath = (label: string) => label === 'Occupancy' ? '/rto' : '/' + label.toLowerCase().replace(/ /g, '-')
   const navigateTo = useCallback((path: string) => router.push(path), [router])
 
   const toggleMobile = () => {
