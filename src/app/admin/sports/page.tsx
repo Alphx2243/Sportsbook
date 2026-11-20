@@ -38,10 +38,15 @@ export default function SportsManagement() {
    const [newSportData, setNewSportData] = useState<any>({ name: '', numberOfCourts: '', totalEquipments: '' })
    const [processing, setProcessing] = useState(false)
    const [uploadingScheduleFor, setUploadingScheduleFor] = useState<string | null>(null)
+   const [updatingOccupancyFor, setUpdatingOccupancyFor] = useState<string | null>(null)
+   const [manualOccupancies, setManualOccupancies] = useState<Record<string, string>>({})
 
    const fetchSports = async () => {
       const res = await getSports()
-      if (res.success) setSports(res.data.documents)
+      if (res.success) {
+         setSports(res.data.documents)
+         setManualOccupancies(Object.fromEntries(res.data.documents.map((sport: any) => [sport.id, String(sport.manualOccupancy || 0)])))
+      }
       setLoading(false)
    }
 
@@ -113,6 +118,14 @@ export default function SportsManagement() {
       const response = await uploadSportSchedule(sportId, formData)
       if (!response.success) alert(response.error)
       setUploadingScheduleFor(null)
+   }
+
+   const handleManualOccupancyUpdate = async (sportId: string) => {
+      setUpdatingOccupancyFor(sportId)
+      const response = await updateManualOccupancy(sportId, manualOccupancies[sportId] || '0')
+      if (!response.success) alert(response.error)
+      else await fetchSports()
+      setUpdatingOccupancyFor(null)
    }
 
    if (loading) {
@@ -336,6 +349,27 @@ export default function SportsManagement() {
                                        })}
                                     </div>
                                  </div>
+                                 {isAdmin && (
+                                    <div className="pt-6 border-t border-border">
+                                       <p className="text-sm font-medium text-muted-foreground mb-3">Manual Occupancy</p>
+                                       <div className="flex gap-3">
+                                          <Input
+                                             type="number"
+                                             min="0"
+                                             value={manualOccupancies[s.id] ?? String(s.manualOccupancy || 0)}
+                                             onChange={(event: any) => setManualOccupancies({ ...manualOccupancies, [s.id]: event.target.value })}
+                                             className="max-w-32 bg-background border-input"
+                                          />
+                                          <Button
+                                             onClick={() => handleManualOccupancyUpdate(s.id)}
+                                             disabled={updatingOccupancyFor === s.id}
+                                             className="bg-primary text-primary-foreground"
+                                          >
+                                             {updatingOccupancyFor === s.id ? 'Updating…' : 'Update'}
+                                          </Button>
+                                       </div>
+                                    </div>
+                                 )}
                                  {isAdmin && (
                                     <div className="pt-6 border-t border-border">
                                        <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
