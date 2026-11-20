@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import QRCode from 'qrcode';
-import { Moon, Sun, UserPen, AlignRight, X, ChevronDown, LogOut, Shield } from 'lucide-react'
+import { UserPen, AlignRight, X, ChevronDown, LogOut, Shield } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import { getGymBookings } from '@/actions/gym'
 import { getAdminNavLinks, normalizeRole, ROLES } from '@/lib/roles'
 import LogoutModal from './ui/LogoutModal'
 import Button from './ui/Button'
@@ -16,7 +16,6 @@ import Button from './ui/Button'
 export default function Navbar() {
   const router = useRouter()
   const { user, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
 
   const [qrUrl, setQrUrl] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -24,6 +23,7 @@ export default function Navbar() {
   const [adminOpen, setAdminOpen] = useState(false)
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const [showQr, setShowQr] = useState(false)
+  const [hasActiveGymSession, setHasActiveGymSession] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
 
   const desktopRef = useRef(null)
@@ -55,6 +55,26 @@ export default function Navbar() {
 
   generateQR();
   }, [user])
+
+  useEffect(() => {
+    if (!user || isGuard) {
+      setHasActiveGymSession(false)
+      return
+    }
+
+    const checkGymSession = async () => {
+      const response = await getGymBookings(user.id)
+      if (response.success) {
+        const isActive = response.data.documents.some((session: any) => session.status === 'active' && !session.exitTime)
+        setHasActiveGymSession(isActive)
+        if (isActive) setShowQr(false)
+      }
+    }
+
+    checkGymSession()
+    const interval = window.setInterval(checkGymSession, 5_000)
+    return () => window.clearInterval(interval)
+  }, [user, isGuard])
 
   const formatPath = (label: string) => '/' + label.toLowerCase().replace(/ /g, '-')
   const navigateTo = useCallback((path: string) => router.push(path), [router])
@@ -102,7 +122,7 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-gradient-premium tracking-tighter">
+            <Link href="/dashboard" className="text-2xl font-bold text-gradient-premium tracking-tighter">
               SportsBook
             </Link>
             <div className="hidden md:flex ml-10 space-x-6 items-center">
@@ -179,7 +199,7 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               )}
-              {user && !isGuard && (
+              {user && !isGuard && !hasActiveGymSession && (
                 <div className="relative flex items-center">
                   <button
                     onClick={() => setShowQr(s => !s)}
@@ -216,12 +236,6 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full border border-white/10 dark:border-white/10 border-black/5 bg-white/5 hover:bg-accent transition-colors cursor-pointer"
-            >
-              {theme === 'dark' ? <Moon className="w-5 h-5 text-primary" /> : <Sun className="w-5 h-5 text-secondary" />}
-            </button>
             <button
               onClick={() => navigateTo(user ? '/profile' : '/login')}
               className="hidden md:flex items-center px-5 py-2 bg-foreground text-background font-semibold rounded-lg hover:bg-foreground/90 shadow-lg transition-all duration-300 cursor-pointer"
@@ -311,7 +325,7 @@ export default function Navbar() {
                   {link.name}
                 </Link>
               ))}
-              {user && !isGuard && (
+              {user && !isGuard && !hasActiveGymSession && (
                 <div className="relative">
                   <button
                     onClick={() => setShowQr(s => !s)}

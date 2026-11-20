@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useSport } from "@/contexts/SportsContext";
-import { useTheme } from "@/contexts/ThemeContext";
 // import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -259,11 +258,9 @@ const TimeTable = ({ sport }: { sport: string }) => {
 };
 
 const DataAnalysis = ({ sport }: { sport: string }) => {
-  const { theme } = useTheme() as { theme: string };
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [peakData, setPeakData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const isDark = theme === 'dark';
 
   useEffect(() => {
     async function fetchData() {
@@ -286,11 +283,11 @@ const DataAnalysis = ({ sport }: { sport: string }) => {
   }, [sport]);
 
   const chartColors = {
-    stroke: isDark ? "#333" : "#eee",
-    text: isDark ? "#666" : "#999",
-    tooltipBg: isDark ? "rgba(10, 10, 10, 0.95)" : "#fff",
-    tooltipBorder: isDark ? "rgba(255, 255, 255, 0.1)" : "#eee",
-    grid: isDark ? "rgba(255, 255, 255, 0.03)" : "#f5f5f5",
+    stroke: "#eee",
+    text: "#999",
+    tooltipBg: "#fff",
+    tooltipBorder: "#eee",
+    grid: "#f5f5f5",
     primary: "#3b82f6",
     secondary: "#8b5cf6"
   }

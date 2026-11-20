@@ -538,7 +538,7 @@ function revalidateAvailabilityPaths() {
 async function assertSportAvailability(tx: any, sport: any, courtNo: string | undefined, numPlayers: number) {
     const activeBookings = await tx.booking.findMany({ where: { sportId: sport.id, status: { in: ['pending', 'active', 'returned'] } } })
     if (sport.maxCapacity && sport.maxCapacity > 0) {
-        const alreadyBookedPlayers = activeBookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0)
+        const alreadyBookedPlayers = activeBookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0) + (sport.manualOccupancy || 0)
         if (alreadyBookedPlayers + numPlayers > sport.maxCapacity) throw new Error('Facility is full!')
         return
     }

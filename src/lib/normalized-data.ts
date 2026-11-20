@@ -169,7 +169,7 @@ export async function withSportAvailability(tx: any, sport: any) {
   const activeGymPlayers = isGym
     ? await tx.gymLog.count({ where: { status: 'active' } })
     : 0
-  const numPlayers = isGym ? activeGymPlayers : bookingPlayers
+  const numPlayers = (isGym ? activeGymPlayers : bookingPlayers) + (sport.manualOccupancy || 0)
   return {
     ...sport,
     courtsInUse: occupiedCourtIds.size,

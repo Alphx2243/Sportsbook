@@ -53,10 +53,25 @@ export default function Dashboard() {
     const [showExtensionModal, setShowExtensionModal] = useState(false);
     const [gymElapsed, setGymElapsed] = useState('');
     const [endingGymSession, setEndingGymSession] = useState(false);
+    const gymSessionRef = useRef<GymSession | null>(null);
+    const gymSessionLoadedRef = useRef(false);
+    const gymReloadTimerRef = useRef<number | null>(null);
 
     // useSocket('dashboard', activeBooking?.sportName, () => {
     //     fetchActiveBooking();
     // }, 'availability_changed');
+
+    const syncGymSession = useCallback((response: any) => {
+        if (!response.success) return;
+        const nextGymSession = response.data.documents.find((log: any) => log.status === 'active' && !log.exitTime) || null;
+        if (gymSessionLoadedRef.current && !gymSessionRef.current && nextGymSession && gymReloadTimerRef.current === null) {
+            const delay = Math.max(0, 4_000 - (Date.now() - new Date(nextGymSession.entryTime).getTime()));
+            gymReloadTimerRef.current = window.setTimeout(() => window.location.reload(), delay);
+        }
+        gymSessionRef.current = nextGymSession;
+        gymSessionLoadedRef.current = true;
+        setActiveGymSession(nextGymSession);
+    }, []);
 
     const fetchActiveBooking = useCallback(async () => {
         if (!user?.id) return;
@@ -72,12 +87,14 @@ export default function Dashboard() {
                 );
                 if (booking) {
                     setActiveBooking(booking);
-                    if (booking.qrDetail) {
+                    if (booking.status === 'pending' && booking.qrDetail) {
                         const dataUrl = await QRCode.toDataURL(booking.qrDetail, {
                             width: 360, margin: 2,
                         });
 
                         setQrUrl(dataUrl);
+                    } else {
+                        setQrUrl('');
                     }
                 } else {
                     setActiveBooking(null);
@@ -87,17 +104,13 @@ export default function Dashboard() {
                 setActiveBooking(null);
                 setQrUrl('');
             }
-            setActiveGymSession(
-                gymRes.success
-                    ? gymRes.data.documents.find((log: any) => log.status === 'active' && !log.exitTime) || null
-                    : null
-            );
+            syncGymSession(gymRes);
         } catch (err) {
             console.error('Error fetching active booking:', err);
         } finally {
             setLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, syncGymSession]);
 
     useEffect(() => {
         if (user) {
@@ -105,14 +118,24 @@ export default function Dashboard() {
             const refreshTimer = window.setInterval(() => {
                 if (document.visibilityState === 'visible') fetchActiveBooking();
             }, 10000);
+            const gymRefreshTimer = window.setInterval(async () => {
+                if (document.visibilityState === 'visible') syncGymSession(await getGymBookings(user.id));
+            }, 1000);
             const refreshOnFocus = () => fetchActiveBooking();
             window.addEventListener('focus', refreshOnFocus);
             return () => {
                 window.clearInterval(refreshTimer);
+                window.clearInterval(gymRefreshTimer);
                 window.removeEventListener('focus', refreshOnFocus);
             };
         }
-    }, [user, fetchActiveBooking]);
+    }, [user, fetchActiveBooking, syncGymSession]);
+
+    useEffect(() => {
+        return () => {
+            if (gymReloadTimerRef.current !== null) window.clearTimeout(gymReloadTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         if (!activeGymSession) {
@@ -307,26 +330,28 @@ export default function Dashboard() {
 
                                         <div className="flex flex-col md:flex-row p-8 gap-8 items-center relative z-10">
                                             {}
-                                            <div className="bg-white p-4 rounded-2xl shadow-2xl relative group">
-                                                <div className="absolute -inset-2 bg-gradient-to-r from-primary to-secondary opacity-20 blur-lg group-hover:opacity-40 transition-opacity" />
-                                                {qrUrl ? (
-                                                    <Image
-                                                        src={qrUrl}
-                                                        alt="Booking QR"
-                                                        width={240}
-                                                        height={240}
-                                                        className="w-60 h-60 relative z-10"
-                                                    />
-                                                ) : (
-                                                    <div className="w-60 h-60 relative z-10 flex items-center justify-center text-gray-500 text-sm">
-                                                        Loading QR...
+                                            {activeBooking.status === 'pending' && (
+                                                <div className="bg-white p-4 rounded-2xl shadow-2xl relative group">
+                                                    <div className="absolute -inset-2 bg-gradient-to-r from-primary to-secondary opacity-20 blur-lg group-hover:opacity-40 transition-opacity" />
+                                                    {qrUrl ? (
+                                                        <Image
+                                                            src={qrUrl}
+                                                            alt="Booking QR"
+                                                            width={240}
+                                                            height={240}
+                                                            className="w-60 h-60 relative z-10"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-60 h-60 relative z-10 flex items-center justify-center text-gray-500 text-sm">
+                                                            Loading QR...
+                                                        </div>
+                                                    )}
+                                                    <div className="relative z-10 mt-3 text-center text-gray-700">
+                                                        <p className="text-[10px] font-bold uppercase tracking-wider">Manual booking code</p>
+                                                        <p className="mt-1 font-mono text-lg font-bold tracking-[0.35em] select-all">{activeBooking.bookingCode}</p>
                                                     </div>
-                                                )}
-                                                <div className="relative z-10 mt-3 text-center text-gray-700">
-                                                    <p className="text-[10px] font-bold uppercase tracking-wider">Manual booking code</p>
-                                                    <p className="mt-1 font-mono text-lg font-bold tracking-[0.35em] select-all">{activeBooking.bookingCode}</p>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             <div className="flex-1 space-y-6 text-center md:text-left">
                                                 <div>

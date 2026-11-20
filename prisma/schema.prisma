@@ -58,6 +58,7 @@ model Sport {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   maxCapacity    Int?
+  manualOccupancy Int       @default(0)
   Equipment      Equipment[]
   courts         Court[]
   bookings       Booking[]

@@ -9,7 +9,9 @@ import {
    Loader2
 } from 'lucide-react'
 import { getSports, createSport } from '@/actions/sports'
-import { updateSportInventory } from '@/actions/admin'
+import { updateManualOccupancy, updateSportInventory } from '@/actions/admin'
+import { useAuth } from '@/contexts/AuthContext'
+import { normalizeRole, ROLES } from '@/lib/roles'
 import { Card, CardContent } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -24,6 +26,8 @@ function availabilityWidthClass(available: number, total: number) {
 }
 
 export default function SportsManagement() {
+   const { user } = useAuth()
+   const isAdmin = normalizeRole(user?.role) === ROLES.ADMIN
    const [sports, setSports] = useState<any[]>([])
    const [loading, setLoading] = useState(true)
    const [editingId, setEditingId] = useState<string | null>(null)
@@ -47,6 +51,7 @@ export default function SportsManagement() {
       setEditData({
          numberOfCourts: sport.numberOfCourts,
          maxCapacity: sport.maxCapacity || '',
+         manualOccupancy: sport.manualOccupancy || 0,
          totalEquipments: (sport.equipments || []).map((e: any) => `${e.name}:${e.total}`).join(', '),
       })
    }
@@ -55,10 +60,19 @@ export default function SportsManagement() {
       setProcessing(true)
       const formattedData = {
          ...editData,
+         manualOccupancy: undefined,
          totalEquipments: editData.totalEquipments.split(',').map((s: string) => s.trim()).filter(Boolean)
       }
       const res = await updateSportInventory(id, formattedData)
       if (res.success) {
+         if (isAdmin) {
+            const occupancyRes = await updateManualOccupancy(id, editData.manualOccupancy)
+            if (!occupancyRes.success) {
+               alert(occupancyRes.error)
+               setProcessing(false)
+               return
+            }
+         }
          setEditingId(null)
          await fetchSports()
       } else {
@@ -190,7 +204,7 @@ export default function SportsManagement() {
 
                            {editingId === s.id ? (
                               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 flex-1">
-                                 <div className="grid grid-cols-2 gap-6">
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                        <label className="text-sm font-medium text-muted-foreground px-1">Total Courts</label>
                                        <Input
@@ -209,7 +223,18 @@ export default function SportsManagement() {
                                           onChange={(e: any) => setEditData({ ...editData, maxCapacity: e.target.value })}
                                        />
                                     </div>
+                                    {isAdmin && <div className="space-y-2">
+                                       <label className="text-sm font-medium text-muted-foreground px-1">Manual Occupancy</label>
+                                       <Input
+                                          type="number"
+                                          min="0"
+                                          className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
+                                          value={editData.manualOccupancy}
+                                          onChange={(e: any) => setEditData({ ...editData, manualOccupancy: e.target.value })}
+                                       />
+                                    </div>}
                                  </div>
+                                 {isAdmin && <p className="text-xs text-muted-foreground">Adds people who are using the facility without an app booking or gym QR session.</p>}
                                  <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground px-1">Equipment Inventory (Format: Racket:10)</label>
                                     <Input
@@ -254,6 +279,12 @@ export default function SportsManagement() {
                                        <p className="text-sm font-medium text-muted-foreground">Active Players</p>
                                        <div className="flex items-center gap-3">
                                           <span className="text-2xl font-bold tabular-nums">{s.numPlayers || 0}</span>
+                                       </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                       <p className="text-sm font-medium text-muted-foreground">Manual Occupancy</p>
+                                       <div className="flex items-center gap-3">
+                                          <span className="text-2xl font-bold tabular-nums">{s.manualOccupancy || 0}</span>
                                        </div>
                                     </div>
                                  </div>

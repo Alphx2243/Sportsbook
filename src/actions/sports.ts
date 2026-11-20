@@ -46,7 +46,7 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
                 ...rest,
                 equipments: Equipment || [],
                 courtsInUse: occupiedCourtIds.size,
-                numPlayers: isGym ? activeGymPlayers : bookingPlayers,
+                numPlayers: (isGym ? activeGymPlayers : bookingPlayers) + sport.manualOccupancy,
                 courtData: (sport.courts || []).map((court: any) => `${court.name}:${occupiedCourtIds.has(court.id) ? '1' : '0'}`),
             }
         })

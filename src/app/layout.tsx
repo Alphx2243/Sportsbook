@@ -4,7 +4,6 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { SportsProvider } from "@/contexts/SportsContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import { connection } from "next/server";
 // import { SocketProvider } from "@/contexts/SocketContext";
 // import { Outfit } from "next/font/google";
@@ -26,11 +25,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AuthProvider>
             {/* <SocketProvider> */}
               <SportsProvider>
-                <ThemeProvider>
-                  <Navbar />
-                  <main>{children}</main>
-                  <Footer />
-                </ThemeProvider>
+                <Navbar />
+                <main>{children}</main>
+                <Footer />
               </SportsProvider>
             {/* </SocketProvider> */}
           </AuthProvider>

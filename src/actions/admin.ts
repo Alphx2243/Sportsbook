@@ -149,6 +149,22 @@ export async function updateSportInventory(sportId: string, data: any): Promise<
     }
 }
 
+export async function updateManualOccupancy(sportId: string, manualOccupancy: unknown): Promise<ActionResponse> {
+    try {
+        await ensureAdmin()
+        await prisma.sport.update({
+            where: { id: sportId },
+            data: { manualOccupancy: nonNegativeInt(manualOccupancy, 'Manual occupancy') },
+        })
+        revalidatePath('/')
+        revalidatePath('/rto')
+        revalidatePath('/admin/sports')
+        return ok(null)
+    } catch (error: any) {
+        return fail(error, 'Failed to update manual occupancy')
+    }
+}
+
 export async function getAllMatches(): Promise<ActionResponse> {
     try {
         await ensureRoles([ROLES.ADMIN, ROLES.FACILITY_MANAGER]);

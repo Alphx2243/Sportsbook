@@ -50,7 +50,7 @@ const GrowthCard = ({ index, qrCode, userId }: { index: number; qrCode: string |
             console.error("Failed to generate QR:", error);
         });
     }, [userId, qrCode]);
-    
+
     return (
         <>
             {
