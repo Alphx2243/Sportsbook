@@ -359,7 +359,7 @@ export default function Dashboard() {
                                                     </span>
                                                     <h3 className="text-4xl font-black text-foreground tracking-tighter">
                                                         {activeBooking.sportName}
-                                                        <span className="ml-3 text-primary/50">Court {activeBooking.courtNo}</span>
+                                                        <span className="ml-3 text-primary/50">{activeBooking.courtNo}</span>
                                                     </h3>
                                                 </div>
 

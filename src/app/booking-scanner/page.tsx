@@ -299,7 +299,7 @@ export default function BookingScannerPage() {
                                             </div>
                                             <div className="flex justify-between items-center py-3 border-b border-white/5">
                                                 <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Court</span>
-                                                <span className="font-black text-primary">#{result.courtNo}</span>
+                                                <span className="font-black text-primary">{result.courtNo}</span>
                                             </div>
                                         </>}
                                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -343,7 +343,7 @@ export default function BookingScannerPage() {
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
                                                 <p className="text-lg font-bold">{booking.sportName}</p>
-                                                <p className="text-sm text-muted-foreground">Court {booking.courtNo || '—'} · Code {booking.bookingCode}</p>
+                                                <p className="text-sm text-muted-foreground">Court: {booking.courtNo || '—'} · Code {booking.bookingCode}</p>
                                             </div>
                                             <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${booking.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : booking.status === 'pending' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-400'}`}>
                                                 {booking.status === 'returned' || booking.status === 'expired' ? 'Return pending' : booking.status}

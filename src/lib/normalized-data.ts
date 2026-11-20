@@ -58,7 +58,7 @@ export async function resolveCourtByNo(tx: any, sportId: string, courtNo?: strin
 
 export function withBookingDisplay(booking: any) {
   const sportName = booking.sport?.name || ''
-  const courtNo = booking.court?.courtNumber?.toString() || booking.court?.name || null
+  const courtNo = booking.court?.name || booking.court?.courtNumber?.toString() || null
   const startAt = booking.startAt ? new Date(booking.startAt) : null
   const endAt = booking.endAt ? new Date(booking.endAt) : null
   const issuedEquipments = Array.isArray(booking.BookingEquipment)
@@ -130,29 +130,42 @@ export function withUserDisplay(user: any) {
 }
 
 export async function syncCourtsForSport(tx: any, sportId: string, numberOfCourts: number, courtData?: unknown) {
-  const courtNames = Array.isArray(courtData)
+  const suppliedNames = Array.isArray(courtData)
     ? courtData.map((item: any, index: number) => String(item).split(':')[0] || `Court ${index + 1}`)
-    : Array.from({ length: numberOfCourts }, (_, index) => `Court ${index + 1}`)
+    : []
+  const courtNames = Array.from(
+    { length: numberOfCourts },
+    (_, index) => suppliedNames[index]?.trim() || `Court ${index + 1}`,
+  )
+  if (new Set(courtNames.map((name) => name.toLowerCase())).size !== courtNames.length) {
+    throw new Error('Court names must be unique.')
+  }
 
-  const activeNames = courtNames.slice(0, numberOfCourts)
-  await tx.court.updateMany({ where: { sportId, name: { notIn: activeNames } }, data: { isActive: false } })
-  // Clear old numbers first so reordered or renamed courts cannot collide mid-update.
-  await tx.court.updateMany({ where: { sportId }, data: { courtNumber: null } })
+  const existingCourts = await tx.court.findMany({
+    where: { sportId },
+    orderBy: [{ courtNumber: 'asc' }, { createdAt: 'asc' }],
+  })
 
-  for (let index = 0; index < activeNames.length; index++) {
-    const name = activeNames[index]
+  // Rename through temporary values so a court can be renamed without losing its active bookings.
+  for (const court of existingCourts) {
+    await tx.court.update({ where: { id: court.id }, data: { name: `__court_${court.id}`, courtNumber: null, isActive: false } })
+  }
+
+  const availableCourts = [...existingCourts]
+  for (let index = 0; index < courtNames.length; index++) {
+    const name = courtNames[index]
     const courtNumber = index + 1
-    await tx.court.upsert({
-      where: { sportId_name: { sportId, name } },
-      update: { courtNumber, isActive: true },
-      create: {
-        id: randomUUID(),
-        sportId,
-        name,
-        courtNumber,
-        isActive: true,
-      },
-    })
+    const existingCourtIndex = availableCourts.findIndex((court: any) => court.name.toLowerCase() === name.toLowerCase())
+    const existingCourt = existingCourtIndex >= 0 ? availableCourts.splice(existingCourtIndex, 1)[0] : availableCourts.shift()
+    if (existingCourt) {
+      await tx.court.update({ where: { id: existingCourt.id }, data: { name, courtNumber, isActive: true } })
+    } else {
+      await tx.court.create({ data: { id: randomUUID(), sportId, name, courtNumber, isActive: true } })
+    }
+  }
+
+  for (const court of availableCourts) {
+    await tx.court.update({ where: { id: court.id }, data: { name: court.name, courtNumber: null, isActive: false } })
   }
 }
 

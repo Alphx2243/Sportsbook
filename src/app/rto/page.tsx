@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useSport } from "@/contexts/SportsContext";
+import { getSportScheduleMeta } from "@/actions/schedules";
 // import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -232,9 +233,22 @@ const OccupancyLocation = ({ info }: { info: any }) => {
   );
 };
 
-const TimeTable = ({ sport }: { sport: string }) => {
-  const [url, setUrl] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+const TimeTable = ({ sportId, sportName }: { sportId?: string; sportName: string }) => {
+  const [schedule, setSchedule] = useState<{ fileName: string; updatedAt: Date } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!sportId) {
+      setSchedule(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getSportScheduleMeta(sportId).then((response) => {
+      setSchedule(response.success ? response.data : null);
+      setLoading(false);
+    });
+  }, [sportId]);
 
 
   return (
@@ -245,14 +259,23 @@ const TimeTable = ({ sport }: { sport: string }) => {
     >
       <div className="flex flex-col items-center gap-2 mb-8">
         <Calendar className="text-primary w-8 h-8 mb-2" />
-        <h2 className="text-3xl font-black text-foreground tracking-tight">Weekly Schedule</h2>
-        <p className="text-gray-500 text-sm font-medium">Standard operating hours and reserved training slots</p>
+        <h2 className="text-3xl font-black text-foreground tracking-tight">{sportName} Schedule</h2>
+        <p className="text-gray-500 text-sm font-medium">Published by the facility administrator</p>
       </div>
 
-      <div className="w-full h-80 flex flex-col items-center justify-center bg-white/5 rounded-2xl text-gray-500 border border-dashed border-white/10 gap-4">
-        <AlertCircle size={40} className="opacity-20" />
-        <p className="font-bold uppercase tracking-widest text-xs">No active schedule found</p>
-      </div>
+      {loading ? (
+        <Loader2 className="mx-auto w-8 h-8 text-primary animate-spin" />
+      ) : schedule && sportId ? (
+        <div className="space-y-4">
+          <iframe title={`${sportName} schedule`} src={`/api/schedules/${sportId}?updated=${new Date(schedule.updatedAt).getTime()}`} className="w-full h-[600px] rounded-2xl border border-border bg-white" />
+          <a className="text-sm font-semibold text-primary hover:underline" href={`/api/schedules/${sportId}`} target="_blank" rel="noreferrer">Open {schedule.fileName}</a>
+        </div>
+      ) : (
+        <div className="w-full h-80 flex flex-col items-center justify-center bg-white/5 rounded-2xl text-gray-500 border border-dashed border-white/10 gap-4">
+          <AlertCircle size={40} className="opacity-20" />
+          <p className="font-bold uppercase tracking-widest text-xs">No schedule has been published</p>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -471,7 +494,7 @@ export default function Occupancy() {
                 onClick={() => setActiveTab(tabObj.key)}
                 className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all duration-500 ${activeTab === tabObj.key
                   ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  : "text-gray-400 hover:text-black hover:bg-white/5"
                   }`}
               >
                 {tabObj.icon}
@@ -504,7 +527,7 @@ export default function Occupancy() {
               </>
             )}
 
-            {activeTab === "timeTable" && <TimeTable sport={selectedSport} />}
+            {activeTab === "timeTable" && <TimeTable sportId={sportInfo?.id} sportName={selectedSport} />}
             {activeTab === "dataAnalysis" && <DataAnalysis sport={selectedSport} />}
           </motion.div>
         </AnimatePresence>

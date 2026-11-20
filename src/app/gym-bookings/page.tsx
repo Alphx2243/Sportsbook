@@ -131,7 +131,7 @@ function BookingCard({ booking, index }: { booking: any; index: number }) {
                 }`}>
                 {booking.status}
               </span>
-              <span className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">Court {booking.courtNo}</span>
+              <span className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">Court: {booking.courtNo}</span>
             </div>
             <h3 className="text-3xl font-black text-foreground tracking-tighter group-hover:text-primary transition-colors">
               {booking.sportName}

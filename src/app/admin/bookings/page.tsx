@@ -95,7 +95,7 @@ export default function BookingManagement() {
                                     <div>
                                        <h3 className="text-3xl font-bold transition-colors duration-300">{b.sportName}</h3>
                                        <div className="flex items-center gap-2 text-primary-foreground mt-2 font-medium text-sm">
-                                          <span className="bg-primary px-2 py-1 rounded-md border border-border">Court {b.courtNo || 'Alpha'}</span>
+                                          <span className="bg-primary px-2 py-1 rounded-md border border-border">Court: {b.courtNo || '—'}</span>
                                        </div>
                                     </div>
                                  </div>

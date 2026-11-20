@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useSport } from '@/contexts/SportsContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { CalendarIcon, ActivityIcon, MapPinIcon, UsersIcon, ClockIcon, Trophy, } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from '@/components/ui/Button'
@@ -178,6 +179,7 @@ function getSportImage(name: string | undefined) {
 
 export default function Home() {
   const router = useRouter()
+  const { user } = useAuth()
   const [index, setIndex] = useState(0)
   const { sports, loading } = useSport()
 
@@ -222,7 +224,7 @@ export default function Home() {
               <Button
                 variant="primary"
                 size="lg"
-                onClick={() => router.push('/book-court')}
+                onClick={() => router.push(user ? '/book-court' : '/login')}
                 className="text-lg px-8"
               >
                 Book Now
@@ -301,7 +303,7 @@ export default function Home() {
                           </div>
                           <Button
                             variant="primary"
-                            onClick={() => router.push('/book-court')}
+                            onClick={() => router.push(user ? '/book-court' : '/login')}
                             className="shadow-lg shadow-blue-600/20"
                           >
                             Book Spot

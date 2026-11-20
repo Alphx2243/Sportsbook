@@ -6,10 +6,12 @@ import {
    Plus,
    Edit3,
    CheckCircle2,
-   Loader2
+   Loader2,
+   Upload
 } from 'lucide-react'
 import { getSports, createSport } from '@/actions/sports'
 import { updateManualOccupancy, updateSportInventory } from '@/actions/admin'
+import { uploadSportSchedule } from '@/actions/schedules'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeRole, ROLES } from '@/lib/roles'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -35,6 +37,7 @@ export default function SportsManagement() {
    const [isAdding, setIsAdding] = useState(false)
    const [newSportData, setNewSportData] = useState<any>({ name: '', numberOfCourts: '', totalEquipments: '' })
    const [processing, setProcessing] = useState(false)
+   const [uploadingScheduleFor, setUploadingScheduleFor] = useState<string | null>(null)
 
    const fetchSports = async () => {
       const res = await getSports()
@@ -52,6 +55,7 @@ export default function SportsManagement() {
          numberOfCourts: sport.numberOfCourts,
          maxCapacity: sport.maxCapacity || '',
          manualOccupancy: sport.manualOccupancy || 0,
+         courtNames: (sport.courtData || []).map((court: string) => court.split(':')[0]).join(', '),
          totalEquipments: (sport.equipments || []).map((e: any) => `${e.name}:${e.total}`).join(', '),
       })
    }
@@ -61,6 +65,7 @@ export default function SportsManagement() {
       const formattedData = {
          ...editData,
          manualOccupancy: undefined,
+         CourtData: editData.courtNames.split(',').map((name: string) => `${name.trim()}:0`).filter((name: string) => name !== ':0'),
          totalEquipments: editData.totalEquipments.split(',').map((s: string) => s.trim()).filter(Boolean)
       }
       const res = await updateSportInventory(id, formattedData)
@@ -87,7 +92,7 @@ export default function SportsManagement() {
          name: newSportData.name,
          courts: newSportData.numberOfCourts,
          totalEquipments: newSportData.totalEquipments ? newSportData.totalEquipments.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-         CourtData: Array.from({ length: parseInt(newSportData.numberOfCourts) || 0 }, (_, i) => `Court${i + 1}:0`)
+         CourtData: Array.from({ length: parseInt(newSportData.numberOfCourts) || 0 }, (_, i) => `Court ${i + 1}:0`)
       }
       const res = await createSport(formattedData)
       if (res.success) {
@@ -98,6 +103,16 @@ export default function SportsManagement() {
          alert(res.error)
       }
       setProcessing(false)
+   }
+
+   const handleScheduleUpload = async (sportId: string, file?: File) => {
+      if (!file) return
+      setUploadingScheduleFor(sportId)
+      const formData = new FormData()
+      formData.set('schedule', file)
+      const response = await uploadSportSchedule(sportId, formData)
+      if (!response.success) alert(response.error)
+      setUploadingScheduleFor(null)
    }
 
    if (loading) {
@@ -236,6 +251,15 @@ export default function SportsManagement() {
                                  </div>
                                  {isAdmin && <p className="text-xs text-muted-foreground">Adds people who are using the facility without an app booking or gym QR session.</p>}
                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground px-1">Court Names (comma-separated)</label>
+                                    <Input
+                                       className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
+                                       placeholder="e.g. North Court, South Court"
+                                       value={editData.courtNames}
+                                       onChange={(e: any) => setEditData({ ...editData, courtNames: e.target.value })}
+                                    />
+                                 </div>
+                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground px-1">Equipment Inventory (Format: Racket:10)</label>
                                     <Input
                                        className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
@@ -312,6 +336,24 @@ export default function SportsManagement() {
                                        })}
                                     </div>
                                  </div>
+                                 {isAdmin && (
+                                    <div className="pt-6 border-t border-border">
+                                       <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                                          <Upload className="w-4 h-4" />
+                                          {uploadingScheduleFor === s.id ? 'Uploading schedule…' : 'Upload schedule PDF'}
+                                          <input
+                                             type="file"
+                                             accept="application/pdf"
+                                             className="sr-only"
+                                             disabled={uploadingScheduleFor !== null}
+                                             onChange={(event) => {
+                                                handleScheduleUpload(s.id, event.target.files?.[0])
+                                                event.target.value = ''
+                                             }}
+                                          />
+                                       </label>
+                                    </div>
+                                 )}
                               </div>
                            )}
                         </CardContent>
