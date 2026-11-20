@@ -28,8 +28,8 @@ export default function BookingScannerPage() {
         const response = await getBookings()
         if (response.success) {
             setBookings(response.data.documents.filter((booking: any) =>
-                ['pending', 'active', 'returned', 'expired'].includes(booking.status)
-            ))
+                ['pending', 'active', 'returned', 'expired', 'completed'].includes(booking.status)
+            ).slice(0, 20))
         }
         setBookingsLoading(false)
     }, [])
@@ -322,8 +322,8 @@ export default function BookingScannerPage() {
                 <section className="mt-12 border-t border-white/10 pt-10">
                         <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-2xl font-bold">Open Bookings</h2>
-                                <p className="mt-1 text-sm text-muted-foreground">Pending scans, active sessions, and bookings awaiting return approval.</p>
+                                <h2 className="text-2xl font-bold">Recent Bookings</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">Includes ended bookings so equipment and student details remain available to guards.</p>
                             </div>
                             <button
                                 type="button"
@@ -345,13 +345,24 @@ export default function BookingScannerPage() {
                                                 <p className="text-lg font-bold">{booking.sportName}</p>
                                                 <p className="text-sm text-muted-foreground">Court: {booking.courtNo || '—'} · Code {booking.bookingCode}</p>
                                             </div>
-                                            <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${booking.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : booking.status === 'pending' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-400'}`}>
+                                            <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${booking.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : booking.status === 'pending' ? 'bg-primary/15 text-primary' : booking.status === 'completed' ? 'bg-slate-500/15 text-slate-500' : 'bg-amber-500/15 text-amber-400'}`}>
                                                 {booking.status === 'returned' || booking.status === 'expired' ? 'Return pending' : booking.status}
                                             </span>
                                         </div>
                                         <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                                             <p className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4 text-primary" />{booking.user?.name || 'Unknown'} {booking.user?.rollNumber ? `(${booking.user.rollNumber})` : ''}</p>
                                             <p className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4 text-primary" />{booking.date} · {booking.startTime}–{booking.endTime}</p>
+                                        </div>
+                                        <div className="mt-4 border-t border-white/10 pt-4">
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Equipment borrowed</p>
+                                            {booking.issuedEquipments?.length ? (
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {booking.issuedEquipments.map((equipment: string) => {
+                                                        const [name, count] = equipment.split(':')
+                                                        return <span key={equipment} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{name} × {count}</span>
+                                                    })}
+                                                </div>
+                                            ) : <p className="mt-2 text-sm text-muted-foreground">No equipment borrowed.</p>}
                                         </div>
                                         {(booking.status === 'returned' || booking.status === 'expired') && (
                                             <button
@@ -367,7 +378,7 @@ export default function BookingScannerPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No open bookings.</p>
+                            <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-muted-foreground">No recent bookings.</p>
                         )}
                 </section>
             </div>
