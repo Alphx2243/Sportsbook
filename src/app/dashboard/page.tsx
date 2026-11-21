@@ -423,7 +423,7 @@ export default function Dashboard() {
                                                             }}
                                                         >
                                                             <Trash2 className="w-4 h-4 mr-2" />
-                                                            Cancel Booking / Remove QR
+                                                            Cancel Booking
                                                         </Button>
                                                     )}
                                                 </div>

@@ -12,7 +12,7 @@ import {
    AlertTriangle,
    Square
 } from 'lucide-react'
-import { completeBooking, getBookings } from '@/actions/bookings'
+import { completeBooking, deleteBooking, getBookings } from '@/actions/bookings'
 import { Card, CardContent } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 
@@ -43,6 +43,15 @@ export default function BookingManagement() {
       setProcessingId(null)
    }
 
+   const handleCancelPendingBooking = async (id: string) => {
+      if (!confirm('Cancel this unscanned booking? Any reserved equipment will be released.')) return
+      setProcessingId(id)
+      const res = await deleteBooking(id)
+      if (res.success) await loadBookings()
+      else alert(res.error)
+      setProcessingId(null)
+   }
+
    return (
       <div className="space-y-8 pb-12 md:space-y-12 md:pb-20">
          <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-10">
@@ -57,7 +66,7 @@ export default function BookingManagement() {
 
             <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
                <div className="flex w-max min-w-full rounded-lg border border-border bg-muted p-1">
-                  {['returned', 'active', 'expired', 'completed', 'all'].map((f) => (
+                  {['pending', 'returned', 'active', 'expired', 'completed', 'all'].map((f) => (
                      <button
                         key={f}
                         onClick={() => setFilter(f)}
@@ -141,7 +150,25 @@ export default function BookingManagement() {
                               </div>
 
                               <div className="shrink-0 w-full lg:w-72 flex flex-col justify-center items-center border-t border-border lg:border-t-0 lg:border-l lg:pl-8 pt-5 lg:pt-0">
-                                 {b.status === 'returned' || b.status === 'expired' ? (
+                                 {b.status === 'pending' ? (
+                                    <div className="w-full space-y-3">
+                                       <div className="p-4 sm:p-6 bg-primary/10 border border-primary/20 rounded-xl flex items-center sm:flex-col text-left sm:text-center gap-3">
+                                          <div className="text-primary"><Clock className="w-6 h-6" /></div>
+                                          <div>
+                                             <p className="text-sm font-bold text-primary">Awaiting QR Scan</p>
+                                             <p className="text-xs text-primary/80 font-medium mt-1">Cancel if this booking will not be used.</p>
+                                          </div>
+                                       </div>
+                                       <Button
+                                          variant="outline"
+                                          className="w-full py-6 text-sm font-semibold rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleCancelPendingBooking(b.id)}
+                                          disabled={processingId === b.id}
+                                       >
+                                          {processingId === b.id ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Cancel Booking'}
+                                       </Button>
+                                    </div>
+                                 ) : b.status === 'returned' || b.status === 'expired' ? (
                                     <div className="w-full space-y-3">
                                        <div className="p-4 sm:p-6 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center sm:flex-col text-left sm:text-center gap-3">
                                           <div className="text-amber-500">
