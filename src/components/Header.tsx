@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import QRCode from 'qrcode';
-import { UserPen, AlignRight, X, ChevronDown, LogOut, Shield } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { UserPen, AlignRight, X, ChevronDown, LogOut, Shield, Building2 } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,6 +15,7 @@ import Button from './ui/Button'
 
 export default function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
   const { user, logout } = useAuth()
 
   const [qrUrl, setQrUrl] = useState('')
@@ -31,10 +32,18 @@ export default function Navbar() {
   const mobileRef = useRef(null)
 
   // 'Live Scores' is retained for its planned launch.
-  const menuItems = ['Dashboard', 'Feedback']
+  const menuItems = [
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Feedback', path: '/feedback' },
+  ]
   const adminLinks = getAdminNavLinks(user?.role)
   // 'SG' is retained for its planned launch.
-  const facilities = ['Book Court', 'Past-Bookings', 'Occupancy', 'Gym-bookings']
+  const facilities = [
+    { name: 'Book a court', path: '/book-court' },
+    { name: 'Booking history', path: '/past-bookings' },
+    { name: 'Facility occupancy', path: '/rto' },
+    { name: 'Gym bookings', path: '/gym-bookings' },
+  ]
   const isGuard = normalizeRole(user?.role) === ROLES.GUARD
 
   useEffect(() => {
@@ -78,7 +87,6 @@ export default function Navbar() {
     return () => window.clearInterval(interval)
   }, [user, isGuard])
 
-  const formatPath = (label: string) => label === 'Occupancy' ? '/rto' : '/' + label.toLowerCase().replace(/ /g, '-')
   const navigateTo = useCallback((path: string) => router.push(path), [router])
 
   const toggleMobile = () => {
@@ -86,8 +94,16 @@ export default function Navbar() {
     setMobileDropdownOpen(false)
     setShowQr(false)
   }
-  const toggleDesktopDropdown = () => setDesktopOpen(o => !o)
-  const toggleAdminDropdown = () => setAdminOpen(o => !o)
+  const toggleDesktopDropdown = () => {
+    setDesktopOpen(o => !o)
+    setAdminOpen(false)
+    setShowQr(false)
+  }
+  const toggleAdminDropdown = () => {
+    setAdminOpen(o => !o)
+    setDesktopOpen(false)
+    setShowQr(false)
+  }
   const toggleMobileDropdown = () => setMobileDropdownOpen(o => !o)
 
   const handleLogout = async () => {
@@ -120,30 +136,30 @@ export default function Navbar() {
   }, [])
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/10 dark:border-white/10 border-black/5 shadow-lg">
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 shadow-sm backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/dashboard" className="text-2xl font-bold text-gradient-premium tracking-tighter">
+          <div className="flex min-w-0 items-center">
+            <Link href="/dashboard" className="shrink-0 text-xl font-bold tracking-tight text-foreground">
               SportsBook
             </Link>
-            <div className="hidden md:flex ml-10 space-x-6 items-center">
+            <div className="hidden lg:flex ml-8 gap-1 items-center">
               {!isGuard && menuItems.map(item => (
                 <button
-                  key={item}
-                  onClick={() => navigateTo(formatPath(item))}
-                  className="px-3 py-2 cursor-pointer rounded-md text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  key={item.path}
+                  onClick={() => navigateTo(item.path)}
+                  className={`px-3 py-2 cursor-pointer rounded-md text-sm font-medium transition-colors ${pathname === item.path ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
                 >
-                  {item}
+                  {item.name}
                 </button>
               ))}
 
               {!isGuard && <div className="relative" ref={desktopRef}>
                 <button
                   onClick={toggleDesktopDropdown}
-                  className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200 cursor-pointer"
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${facilities.some(item => pathname === item.path) ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
                 >
-                  Facilities <ChevronDown className="ml-1 w-4 h-4" />
+                  <Building2 className="mr-1.5 w-4 h-4" /> Facilities <ChevronDown className="ml-1 w-4 h-4" />
                 </button>
                 <AnimatePresence>
                   {desktopOpen && (
@@ -152,16 +168,16 @@ export default function Navbar() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute mt-2 w-48 glass-panel rounded-lg shadow-xl overflow-hidden"
+                      className="absolute right-0 z-50 mt-2 bg-white max-h-[calc(100vh-5rem)] w-52 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
                     >
                       {facilities.map(f => (
                         <Link
-                          key={f}
-                          href={formatPath(f)}
+                          key={f.path}
+                          href={f.path}
                           onClick={() => setDesktopOpen(false)}
-                          className="block px-4 py-3 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                          className={`block rounded-md px-3 py-2 text-sm transition-colors cursor-pointer ${pathname === f.path ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent'}`}
                         >
-                          {f}
+                          {f.name}
                         </Link>
                       ))}
                     </motion.div>
@@ -172,7 +188,7 @@ export default function Navbar() {
                 <div className="relative" ref={adminRef}>
                   <button
                     onClick={toggleAdminDropdown}
-                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200 cursor-pointer"
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${pathname.startsWith('/admin') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
                   >
                     <Shield className="mr-1.5 w-4 h-4" />
                     Admin <ChevronDown className="ml-1 w-4 h-4" />
@@ -184,14 +200,14 @@ export default function Navbar() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute mt-2 w-56 glass-panel rounded-lg shadow-xl overflow-hidden"
+                      className="absolute bg-white right-0 z-50 mt-2 max-h-[calc(100vh-5rem)] w-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
                       >
                         {adminLinks.map(link => (
                           <Link
                             key={link.path}
                             href={link.path}
                             onClick={() => setAdminOpen(false)}
-                            className="block px-4 py-3 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                            className={`block rounded-md px-3 py-2 text-sm transition-colors cursor-pointer ${pathname === link.path ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent'}`}
                           >
                             {link.name}
                           </Link>
@@ -205,7 +221,7 @@ export default function Navbar() {
                 <div className="relative flex items-center">
                   <button
                     onClick={() => setShowQr(s => !s)}
-                    className="px-4 py-2 rounded-lg text-sm cursor-pointer font-semibold text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 transition shadow-[0_0_10px_-3px_var(--color-primary)]"
+                    className="px-3 py-2 rounded-md text-sm cursor-pointer font-semibold text-primary bg-primary/10 hover:bg-primary/15 transition-colors"
                   >
                     Gym QR
                   </button>
@@ -216,7 +232,7 @@ export default function Navbar() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.9 }}
                         transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-full mt-2 w-48 h-48 flex items-center justify-center glass-panel rounded-xl z-50"
+                        className="absolute left-0 top-full mt-2 w-48 h-48 flex items-center justify-center rounded-lg border border-border bg-popover p-3 shadow-lg z-50"
                       >
                         {qrUrl ? (
                           <Image
@@ -240,14 +256,14 @@ export default function Navbar() {
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigateTo(user ? '/profile' : '/login')}
-              className="hidden md:flex items-center px-5 py-2 bg-foreground text-background font-semibold rounded-lg hover:bg-foreground/90 shadow-lg transition-all duration-300 cursor-pointer"
+              className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 shadow-sm transition-colors cursor-pointer"
             >
-              {user ? <UserPen className="w-5 h-5" /> : 'Login'}
+              {user && <UserPen className="w-4 h-4" />}{user ? 'Profile' : 'Login'}
             </button>
             {user && (
               <button
                 onClick={() => setLogoutModalOpen(true)}
-                className="hidden md:flex h-10 items-center gap-2 px-3 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300 cursor-pointer font-semibold text-sm"
+                className="hidden lg:flex h-9 items-center gap-2 px-2 rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer font-medium text-sm"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -256,7 +272,7 @@ export default function Navbar() {
             )}
             <button
               onClick={toggleMobile}
-              className="md:hidden p-2 rounded-md focus:outline-none text-foreground hover:bg-white/10"
+            className="lg:hidden p-2 rounded-md focus:outline-none text-foreground hover:bg-accent"
             >
               {mobileOpen ? <X className="w-6 h-6" /> : <AlignRight className="w-6 h-6" />}
             </button>
@@ -271,26 +287,26 @@ export default function Navbar() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden glass-panel border-t border-white/10 overflow-hidden"
+            className="lg:hidden border-t border-border bg-background shadow-lg overflow-hidden"
           >
             <div className="px-4 pt-4 pb-6 space-y-2 max-h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
               {!isGuard && menuItems.map(item => (
                 <button
-                  key={item}
+                  key={item.path}
                   onClick={() => {
-                    navigateTo(formatPath(item));
+                    navigateTo(item.path);
                     setMobileOpen(false);
                   }}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${pathname === item.path ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
                 >
-                  {item}
+                  {item.name}
                 </button>
               ))}
 
               {!isGuard && <div className="relative" ref={mobileRef}>
                 <button
                   onClick={toggleMobileDropdown}
-                  className="w-full flex justify-between items-center px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  className="w-full flex justify-between items-center px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   Facilities <ChevronDown className="w-4 h-4" />
                 </button>
@@ -305,12 +321,12 @@ export default function Navbar() {
                     >
                       {facilities.map(f => (
                         <Link
-                          key={f}
-                          href={formatPath(f)}
+                          key={f.path}
+                          href={f.path}
                           onClick={() => setMobileOpen(false)}
-                          className="block px-3 py-2 text-sm text-foreground hover:text-primary hover:bg-primary/10 rounded-md"
+                          className={`block px-3 py-2 text-sm rounded-md ${pathname === f.path ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent'}`}
                         >
-                          {f}
+                          {f.name}
                         </Link>
                       ))}
                     </motion.div>
@@ -322,7 +338,7 @@ export default function Navbar() {
                   key={link.path}
                   href={link.path}
                   onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2 text-sm text-foreground hover:text-primary hover:bg-primary/10 rounded-md"
+                  className={`block px-3 py-2 text-sm rounded-md ${pathname === link.path ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent'}`}
                 >
                   {link.name}
                 </Link>
@@ -331,7 +347,7 @@ export default function Navbar() {
                 <div className="relative">
                   <button
                     onClick={() => setShowQr(s => !s)}
-                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-primary hover:bg-primary/10"
+                    className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10"
                   >
                     Gym QR
                   </button>
@@ -342,7 +358,7 @@ export default function Navbar() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.9 }}
                         transition={{ duration: 0.3 }}
-                        className="mt-2 flex justify-center py-4 bg-black/40 rounded-lg"
+                        className="mt-2 flex justify-center py-4 bg-accent rounded-lg"
                       >
                         {qrUrl ? (
                           <Image
@@ -365,7 +381,7 @@ export default function Navbar() {
                   navigateTo(user ? '/profile' : '/login')
                   setMobileOpen(false)
                 }}
-                className="mt-4 block w-full text-center px-3 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_-5px_var(--color-primary)] text-white font-bold cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all"
+                className="mt-4 block w-full text-center px-3 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-white font-semibold cursor-pointer transition-colors"
               >
                 {user ? 'Edit Profile' : 'Login'}
               </button>

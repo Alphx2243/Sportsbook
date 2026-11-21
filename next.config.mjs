@@ -3,7 +3,8 @@ const nextConfig = {
     poweredByHeader: false,
     distDir: process.env.NEXT_DIST_DIR || ".next",
     experimental: {
-        serverActions: { bodySizeLimit: '10mb' },
+        middlewareClientMaxBodySize: '25mb',
+        serverActions: { bodySizeLimit: '25mb' },
     },
     images: {
         remotePatterns: [

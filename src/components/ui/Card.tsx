@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 interface CardProps {
     className?: string;
     children?: React.ReactNode;
@@ -10,15 +8,12 @@ interface CardProps {
 
 export function Card({ className, children, ...props }: CardProps) {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className={`glass-card rounded-xl overflow-hidden shadow-lg ${className || ""}`}
+        <div
+            className={`glass-card rounded-xl overflow-hidden ${className || ""}`}
             {...props}
         >
             {children}
-        </motion.div>
+        </div>
     );
 }
 
@@ -32,7 +27,7 @@ export function CardHeader({ className, children, ...props }: CardProps) {
 
 export function CardTitle({ className, children, ...props }: CardProps) {
     return (
-        <h3 className={`text-2xl font-bold leading-none tracking-tight text-foreground mb-2 ${className || ""}`} {...props}>
+            <h3 className={`text-xl font-semibold leading-tight tracking-tight text-foreground mb-2 ${className || ""}`} {...props}>
             {children}
         </h3>
     );
@@ -40,7 +35,7 @@ export function CardTitle({ className, children, ...props }: CardProps) {
 
 export function CardDescription({ className, children, ...props }: CardProps) {
     return (
-        <p className={`text-sm text-gray-400 ${className || ""}`} {...props}>
+            <p className={`text-sm text-muted-foreground ${className || ""}`} {...props}>
             {children}
         </p>
     );

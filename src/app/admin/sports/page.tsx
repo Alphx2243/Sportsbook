@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { getSports, createSport } from '@/actions/sports'
 import { updateManualOccupancy, updateSportInventory } from '@/actions/admin'
-import { uploadSportSchedule } from '@/actions/schedules'
+import { uploadGlobalSchedule } from '@/actions/schedules'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeRole, ROLES } from '@/lib/roles'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -37,7 +37,7 @@ export default function SportsManagement() {
    const [isAdding, setIsAdding] = useState(false)
    const [newSportData, setNewSportData] = useState<any>({ name: '', numberOfCourts: '', totalEquipments: '' })
    const [processing, setProcessing] = useState(false)
-   const [uploadingScheduleFor, setUploadingScheduleFor] = useState<string | null>(null)
+   const [uploadingSchedule, setUploadingSchedule] = useState(false)
    const [updatingOccupancyFor, setUpdatingOccupancyFor] = useState<string | null>(null)
    const [manualOccupancies, setManualOccupancies] = useState<Record<string, string>>({})
 
@@ -110,14 +110,20 @@ export default function SportsManagement() {
       setProcessing(false)
    }
 
-   const handleScheduleUpload = async (sportId: string, file?: File) => {
+   const handleScheduleUpload = async (file?: File) => {
       if (!file) return
-      setUploadingScheduleFor(sportId)
-      const formData = new FormData()
-      formData.set('schedule', file)
-      const response = await uploadSportSchedule(sportId, formData)
-      if (!response.success) alert(response.error)
-      setUploadingScheduleFor(null)
+      setUploadingSchedule(true)
+      try {
+         const formData = new FormData()
+         formData.set('schedule', file)
+         const response = await uploadGlobalSchedule(formData)
+         if (!response.success) alert(response.error)
+         else alert('All-sports schedule uploaded.')
+      } catch {
+         alert('Schedule upload failed. Please try again.')
+      } finally {
+         setUploadingSchedule(false)
+      }
    }
 
    const handleManualOccupancyUpdate = async (sportId: string) => {
@@ -152,12 +158,30 @@ export default function SportsManagement() {
                </p>
             </div>
 
-            <Button
-               onClick={() => setIsAdding(true)}
-               className="px-6 py-3 text-sm font-semibold rounded-xl shadow-sm transition-all bg-primary hover:bg-primary/90 text-primary-foreground border-0"
-            >
-               <Plus className="w-6 h-6 mr-4" /> Add New Sport
-            </Button>
+            <div className="flex flex-wrap gap-3">
+               {isAdmin && (
+                  <label className={`inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm ${uploadingSchedule ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-primary/90'}`}>
+                     <Upload className="w-5 h-5" />
+                     {uploadingSchedule ? 'Uploading schedule…' : 'Upload schedule'}
+                     <input
+                        type="file"
+                        accept="application/pdf"
+                        className="sr-only"
+                        disabled={uploadingSchedule}
+                        onChange={(event) => {
+                           handleScheduleUpload(event.target.files?.[0])
+                           event.target.value = ''
+                        }}
+                     />
+                  </label>
+               )}
+               <Button
+                  onClick={() => setIsAdding(true)}
+                  className="px-6 py-3 text-sm font-semibold rounded-xl shadow-sm transition-all bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+               >
+                  <Plus className="w-6 h-6 mr-4" /> Add New Sport
+               </Button>
+            </div>
          </header>
 
          {isAdding && (
@@ -368,24 +392,6 @@ export default function SportsManagement() {
                                              {updatingOccupancyFor === s.id ? 'Updating…' : 'Update'}
                                           </Button>
                                        </div>
-                                    </div>
-                                 )}
-                                 {isAdmin && (
-                                    <div className="pt-6 border-t border-border">
-                                       <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-                                          <Upload className="w-4 h-4" />
-                                          {uploadingScheduleFor === s.id ? 'Uploading schedule…' : 'Upload schedule PDF'}
-                                          <input
-                                             type="file"
-                                             accept="application/pdf"
-                                             className="sr-only"
-                                             disabled={uploadingScheduleFor !== null}
-                                             onChange={(event) => {
-                                                handleScheduleUpload(s.id, event.target.files?.[0])
-                                                event.target.value = ''
-                                             }}
-                                          />
-                                       </label>
                                     </div>
                                  )}
                               </div>

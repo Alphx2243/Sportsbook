@@ -29,9 +29,9 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-16">
-      <Card className="w-full max-w-md border-white/10 shadow-2xl bg-card/40 backdrop-blur-xl">
-        <CardHeader className="text-center border-b border-border/50">
-          <CardTitle className="text-3xl font-bold text-gradient-premium">SportsBook</CardTitle>
+      <Card className="w-full max-w-md bg-card shadow-xl shadow-slate-900/5">
+        <CardHeader className="text-center border-b border-border">
+          <CardTitle className="text-3xl font-bold">SportsBook</CardTitle>
           <p className="text-muted-foreground mt-2">Sign in with your IIIT Delhi Google account</p>
         </CardHeader>
         <CardContent className="p-8 space-y-5">

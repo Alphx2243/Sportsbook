@@ -70,12 +70,7 @@ const sportImages = {
 
 function DevelopersSection(){
   return (
-    <section className="relative py-24 px-6 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
-
+    <section className="relative py-24 px-6">
     <div className="relative z-10 max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <motion.h2
@@ -120,12 +115,7 @@ function DevelopersSection(){
 
 function FeaturesSection() {
   return (
-    <section className="relative py-24 px-6 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
-
+    <section className="relative py-24 px-6">
       <div className="relative z-10 max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <motion.h2
@@ -198,13 +188,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden pt-16">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[10%] right-[-5%] w-[30%] h-[30%] bg-purple-600/20 rounded-full blur-[100px]" />
-        <div className="absolute top-[40%] left-[60%] w-[20%] h-[20%] bg-cyan-600/10 rounded-full blur-[80px]" />
-      </div>
-
-      <section className="relative z-10 flex flex-col md:flex-row items-center justify-between px-6 md:px-12 py-12 md:py-24 max-w-7xl mx-auto gap-12 min-h-[calc(100vh-64px)]">
+      <section className="flex flex-col md:flex-row items-center justify-between px-6 md:px-12 py-12 md:py-24 max-w-7xl mx-auto gap-12 min-h-[calc(100vh-64px)]">
         <div className="flex-1 text-center md:text-left">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -347,7 +331,6 @@ export default function Home() {
               </AnimatePresence>
             </motion.div>
 
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl -z-10" />
           </div>
         ) : (
           <div className="flex-1 w-full max-w-xl">

@@ -49,7 +49,7 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen bg-background text-foreground antialiased pt-16">
       <main className="flex-1 relative z-10 w-full min-w-0">
-        <div className="max-w-7xl mx-auto p-6 md:p-10 lg:p-10">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 md:py-10 lg:px-8">
           {children}
         </div>
       </main>

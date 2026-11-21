@@ -80,6 +80,15 @@ model SportSchedule {
   sport       Sport    @relation(fields: [sportId], references: [id], onDelete: Cascade)
 }
 
+model GlobalSchedule {
+  id          String   @id
+  fileName    String
+  contentType String
+  pdfData     Bytes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Booking {
   id               String             @id @default(uuid())
   userId           String

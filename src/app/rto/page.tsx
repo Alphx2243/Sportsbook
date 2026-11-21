@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useSport } from "@/contexts/SportsContext";
-import { getSportScheduleMeta } from "@/actions/schedules";
+import { getGlobalScheduleMeta } from "@/actions/schedules";
 // import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -233,22 +233,17 @@ const OccupancyLocation = ({ info }: { info: any }) => {
   );
 };
 
-const TimeTable = ({ sportId, sportName }: { sportId?: string; sportName: string }) => {
+const TimeTable = () => {
   const [schedule, setSchedule] = useState<{ fileName: string; updatedAt: Date } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!sportId) {
-      setSchedule(null);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
-    getSportScheduleMeta(sportId).then((response) => {
+    getGlobalScheduleMeta().then((response) => {
       setSchedule(response.success ? response.data : null);
       setLoading(false);
     });
-  }, [sportId]);
+  }, []);
 
 
   return (
@@ -259,16 +254,16 @@ const TimeTable = ({ sportId, sportName }: { sportId?: string; sportName: string
     >
       <div className="flex flex-col items-center gap-2 mb-8">
         <Calendar className="text-primary w-8 h-8 mb-2" />
-        <h2 className="text-3xl font-black text-foreground tracking-tight">{sportName} Schedule</h2>
+        <h2 className="text-3xl font-black text-foreground tracking-tight">Sports Schedule</h2>
         <p className="text-gray-500 text-sm font-medium">Published by the facility administrator</p>
       </div>
 
       {loading ? (
         <Loader2 className="mx-auto w-8 h-8 text-primary animate-spin" />
-      ) : schedule && sportId ? (
+      ) : schedule ? (
         <div className="space-y-4">
-          <iframe title={`${sportName} schedule`} src={`/api/schedules/${sportId}?updated=${new Date(schedule.updatedAt).getTime()}`} className="w-full h-[600px] rounded-2xl border border-border bg-white" />
-          <a className="text-sm font-semibold text-primary hover:underline" href={`/api/schedules/${sportId}`} target="_blank" rel="noreferrer">Open {schedule.fileName}</a>
+          <iframe title="Sports schedule" src={`/api/schedule?updated=${new Date(schedule.updatedAt).getTime()}`} className="w-full h-[600px] rounded-2xl border border-border bg-white" />
+          <a className="text-sm font-semibold text-primary hover:underline" href="/api/schedule" target="_blank" rel="noreferrer">Open {schedule.fileName}</a>
         </div>
       ) : (
         <div className="w-full h-80 flex flex-col items-center justify-center bg-white/5 rounded-2xl text-gray-500 border border-dashed border-white/10 gap-4">
@@ -462,12 +457,7 @@ export default function Occupancy() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground pt-[8rem] py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[-5%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse [animation-delay:2s]" />
-      </div>
-
+    <div className="min-h-screen bg-background text-foreground pt-[8rem] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -506,16 +496,18 @@ export default function Occupancy() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab + selectedSport}
+            key={activeTab === "timeTable" ? activeTab : activeTab + selectedSport}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4 }}
           >
-            <SportSelector
-              value={selectedSport}
-              onChange={(val: string) => setSelectedSport(val)}
-            />
+            {activeTab !== "timeTable" && (
+              <SportSelector
+                value={selectedSport}
+                onChange={(val: string) => setSelectedSport(val)}
+              />
+            )}
 
             {activeTab === "liveVacancy" && (
               <>
@@ -527,7 +519,7 @@ export default function Occupancy() {
               </>
             )}
 
-            {activeTab === "timeTable" && <TimeTable sportId={sportInfo?.id} sportName={selectedSport} />}
+            {activeTab === "timeTable" && <TimeTable />}
             {activeTab === "dataAnalysis" && <DataAnalysis sport={selectedSport} />}
           </motion.div>
         </AnimatePresence>

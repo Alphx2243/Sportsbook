@@ -1,11 +1,10 @@
 import prisma from '@/lib/prisma'
 import { requireUser } from '@/lib/auth-utils'
 
-export async function GET(_: Request, { params }: { params: Promise<{ sportId: string }> }) {
+export async function GET() {
   try {
     await requireUser()
-    const { sportId } = await params
-    const schedule = await prisma.sportSchedule.findUnique({ where: { sportId } })
+    const schedule = await prisma.globalSchedule.findUnique({ where: { id: 'all-sports' } })
     if (!schedule) return new Response('Schedule not found.', { status: 404 })
 
     return new Response(new Uint8Array(schedule.pdfData), {

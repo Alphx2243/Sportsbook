@@ -255,10 +255,7 @@ export default function Dashboard() {
     ];
 
     return (
-        <div className="min-h-screen bg-background pt-24 px-6 pb-12 relative overflow-hidden text-foreground">
-            <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-            <div className="absolute right-[-10%] top-[10%] w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px] pointer-events-none" />
-
+        <div className="min-h-screen bg-background pt-24 px-6 pb-12 text-foreground">
             <div className="max-w-7xl mx-auto relative z-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                     <motion.div
@@ -331,7 +328,7 @@ export default function Dashboard() {
                                             {}
                                             {activeBooking.status === 'pending' && (
                                                 <div className="bg-white p-4 rounded-2xl shadow-2xl relative group">
-                                                    <div className="absolute -inset-2 bg-gradient-to-r from-primary to-secondary opacity-20 blur-lg group-hover:opacity-40 transition-opacity" />
+                                                    <div className="absolute -inset-2 bg-primary/15 blur-lg group-hover:bg-primary/25 transition-colors" />
                                                     {qrUrl ? (
                                                         <Image
                                                             src={qrUrl}
@@ -502,7 +499,7 @@ export default function Dashboard() {
                                             onClick={() => router.push(action.href)}
                                         >
                                             <div className="p-6 flex items-center gap-4">
-                                                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 group-hover:from-primary/20 group-hover:to-secondary/20 transition-all duration-300 border border-white/5 shadow-inner">
+                                                <div className="p-4 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors border border-white/5 shadow-inner">
                                                     <action.icon className="w-6 h-6 text-primary group-hover:text-primary-foreground transition-colors" />
                                                 </div>
                                                 <div>

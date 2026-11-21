@@ -47,12 +47,7 @@ export default function PastBookings() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden pb-12">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[20%] w-[40%] h-[40%] bg-indigo-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[20%] right-[10%] w-[30%] h-[30%] bg-teal-500/5 rounded-full blur-[100px]" />
-      </div>
-
+    <div className="min-h-screen bg-background text-foreground pb-12">
       <header className="pt-24 pb-12 px-6 relative z-10 text-center">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -120,7 +115,7 @@ function BookingCard({ booking, index }: { booking: any; index: number }) {
       transition={{ delay: index * 0.05 }}
       className="glass-panel group overflow-hidden border border-white/5 hover:border-primary/20 transition-all relative"
     >
-      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-purple-600 opacity-20 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-primary/40 group-hover:bg-primary transition-colors" />
 
       <div className="p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

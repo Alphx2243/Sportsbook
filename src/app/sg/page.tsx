@@ -65,8 +65,8 @@ const GrowthCard = ({ index, qrCode, userId }: { index: number; qrCode: string |
                             custom={index}
                             whileHover="hover"
                         >
-                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-secondary opacity-50 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-xl shadow-primary/20 group-hover:rotate-6 transition-transform">
+                            <div className="absolute inset-x-0 top-0 h-1 bg-primary/40 group-hover:bg-primary transition-colors" />
+                            <div className="w-20 h-20 bg-primary rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-xl shadow-primary/20 group-hover:rotate-6 transition-transform">
                                 <Volleyball className="text-white w-10 h-10 animate-float" />
                             </div>
                             <h2 className="text-3xl font-black text-foreground text-center tracking-tight">Ready to Grow?</h2>
@@ -156,7 +156,7 @@ function ChooseActivity({ qrCode }: { qrCode: string | null }) {
             </div>
 
             <div className='relative group'>
-                <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary opacity-20 blur-xl group-hover:opacity-40 transition-opacity" />
+                <div className="absolute -inset-4 bg-primary/15 blur-xl group-hover:bg-primary/25 transition-colors" />
                 <div className='relative border-8 border-white rounded-3xl bg-white p-6 shadow-2xl max-w-[280px] mx-auto overflow-hidden'>
                     {qrCode ? (
                         <Image
@@ -209,13 +209,7 @@ const SelfGrowthFeature = () => {
     }, [user?.id])
 
     return (
-        <main className="min-h-screen bg-background text-foreground py-12 px-6 md:px-16 pt-[8rem] relative overflow-hidden">
-            {}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] opacity-20" />
-                <div className="absolute bottom-0 right-1/4 w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px] opacity-20" />
-            </div>
-
+        <main className="min-h-screen bg-background text-foreground py-12 px-6 md:px-16 pt-[8rem]">
             <div className="max-w-7xl mx-auto relative z-10 transition-all">
                 <motion.div
                     className="text-center mb-16"

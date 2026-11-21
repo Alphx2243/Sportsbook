@@ -68,12 +68,7 @@ function LiveScoringFeature() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden pt-24 pb-12">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-10 left-10 w-[40%] h-[40%] bg-red-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-10 right-10 w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
-      </div>
-
+    <div className="min-h-screen bg-background text-foreground pt-24 pb-12">
       <main className="max-w-7xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -155,9 +150,9 @@ function ScoreCard({ game }: { game: Match }) {
           </div>
 
           <div className="flex flex-col items-center gap-1 opacity-20">
-            <div className="w-0.5 h-8 bg-gradient-to-t from-transparent via-white to-transparent" />
+            <div className="w-px h-8 bg-border" />
             <span className="text-xs font-bold italic">VS</span>
-            <div className="w-0.5 h-8 bg-gradient-to-b from-transparent via-white to-transparent" />
+            <div className="w-px h-8 bg-border" />
           </div>
 
           <div className="text-center flex-1">
@@ -183,7 +178,7 @@ function ScoreCard({ game }: { game: Match }) {
       </div>
 
       {game.status === 'live' && (
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-primary to-red-500 bg-[length:200%_auto] animate-gradient-x" />
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-red-500" />
       )}
     </motion.div>
   );

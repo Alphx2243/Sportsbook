@@ -1,20 +1,20 @@
 'use server'
 
-import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { fail, ok } from '@/lib/action-response'
 import { ensureAdmin, requireUser } from '@/lib/auth-utils'
 import type { ActionResponse } from '@/interfaces'
 
-const MAX_SCHEDULE_SIZE = 10 * 1024 * 1024
+const GLOBAL_SCHEDULE_ID = 'all-sports'
+const MAX_SCHEDULE_SIZE = 25 * 1024 * 1024
 
-export async function uploadSportSchedule(sportId: string, formData: FormData): Promise<ActionResponse> {
+export async function uploadGlobalSchedule(formData: FormData): Promise<ActionResponse> {
   try {
     await ensureAdmin()
     const file = formData.get('schedule')
-    if (!(file instanceof File) || file.type !== 'application/pdf' || file.size === 0 || file.size > MAX_SCHEDULE_SIZE) {
-      throw new Error('Upload a PDF no larger than 10 MB.')
+    if (!(file instanceof File) || file.size === 0 || file.size > MAX_SCHEDULE_SIZE) {
+      throw new Error('Upload a PDF no larger than 25 MB.')
     }
 
     const pdfData = new Uint8Array(await file.arrayBuffer())
@@ -22,13 +22,10 @@ export async function uploadSportSchedule(sportId: string, formData: FormData): 
       throw new Error('The uploaded file is not a valid PDF.')
     }
 
-    const sport = await prisma.sport.findUnique({ where: { id: sportId }, select: { id: true } })
-    if (!sport) throw new Error('Sport not found.')
-
-    await prisma.sportSchedule.upsert({
-      where: { sportId },
-      update: { fileName: file.name, contentType: file.type, pdfData },
-      create: { id: randomUUID(), sportId, fileName: file.name, contentType: file.type, pdfData },
+    await prisma.globalSchedule.upsert({
+      where: { id: GLOBAL_SCHEDULE_ID },
+      update: { fileName: file.name, contentType: 'application/pdf', pdfData },
+      create: { id: GLOBAL_SCHEDULE_ID, fileName: file.name, contentType: 'application/pdf', pdfData },
     })
     revalidatePath('/rto')
     revalidatePath('/admin/sports')
@@ -37,12 +34,11 @@ export async function uploadSportSchedule(sportId: string, formData: FormData): 
     return fail(error, 'Failed to upload schedule')
   }
 }
-
-export async function getSportScheduleMeta(sportId: string): Promise<ActionResponse<{ fileName: string; updatedAt: Date } | null>> {
+export async function getGlobalScheduleMeta(): Promise<ActionResponse<{ fileName: string; updatedAt: Date } | null>> {
   try {
     await requireUser()
-    const schedule = await prisma.sportSchedule.findUnique({
-      where: { sportId },
+    const schedule = await prisma.globalSchedule.findUnique({
+      where: { id: GLOBAL_SCHEDULE_ID },
       select: { fileName: true, updatedAt: true },
     })
     return ok(schedule)

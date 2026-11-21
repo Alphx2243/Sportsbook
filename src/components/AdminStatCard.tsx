@@ -21,21 +21,11 @@ export default function AdminStatCard({ title, value, icon: Icon, color, descrip
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20 shadow-amber-500/10',
   }
 
-  const bgGradient = {
-    blue: 'from-blue-500/20 to-transparent',
-    purple: 'from-purple-500/20 to-transparent',
-    emerald: 'from-emerald-500/20 to-transparent',
-    rose: 'from-rose-500/20 to-transparent',
-    amber: 'from-amber-500/20 to-transparent',
-  }
-
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group transition-all duration-300 flex flex-col justify-between min-h-[160px] shadow-sm hover:shadow-md"
+      className="bg-card p-6 rounded-xl border border-border relative overflow-hidden transition-shadow duration-200 flex flex-col justify-between min-h-[160px] shadow-sm hover:shadow-md"
     >
-      <div className={`absolute -top-10 -right-10 w-40 h-40 blur-[80px] opacity-20 bg-gradient-to-br ${bgGradient[color]} group-hover:opacity-40 transition-opacity duration-700`} />
-      
       <div className="flex items-start justify-between relative z-10 w-full mb-4">
         <div className={`p-3 rounded-lg border ${colorMap[color]} transition-transform duration-300`}>
            <Icon className="w-5 h-5" />
