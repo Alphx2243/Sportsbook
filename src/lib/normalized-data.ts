@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { isPublicSport } from '@/lib/facility-rules'
 
 const IST_TIME_ZONE = 'Asia/Kolkata'
 const IST_OFFSET_MINUTES = 330
@@ -69,6 +70,7 @@ export function withBookingDisplay(booking: any) {
     startAt,
     endAt,
     sportName,
+    sportType: booking.sport?.sportType || 'private',
     courtNo,
     date: startAt ? dateToDateString(startAt) : '',
     startTime: startAt ? dateToTimeString(startAt) : '',
@@ -165,7 +167,7 @@ export async function syncCourtsForSport(tx: any, sportId: string, numberOfCourt
   }
 
   for (const court of availableCourts) {
-    await tx.court.update({ where: { id: court.id }, data: { name: court.name, courtNumber: null, isActive: false } })
+    await tx.court.update({ where: { id: court.id }, data: { name: court.name, courtNumber: null, isActive: false, manualOccupied: false, manualOccupancy: 0 } })
   }
 }
 
@@ -174,19 +176,21 @@ export async function withSportAvailability(tx: any, sport: any) {
     where: { sportId: sport.id, status: { in: ['pending', 'active', 'returned'] } },
     select: { courtId: true, numberOfPlayers: true },
   })
-  const occupiedCourtIds = new Set(activeBookings.map((booking: any) => booking.courtId).filter(Boolean))
-  const courts = sport.courts || []
+  const bookedCourtIds = new Set(activeBookings.map((booking: any) => booking.courtId).filter(Boolean))
+  const courts = (sport.courts || []).map((court: any) => ({ ...court, isBooked: bookedCourtIds.has(court.id) }))
+  const occupiedCourtIds = isPublicSport(sport)
+    ? new Set()
+    : new Set(courts.filter((court: any) => court.manualOccupied || court.isBooked).map((court: any) => court.id))
   const courtData = courts.map((court: any) => `${court.name}:${occupiedCourtIds.has(court.id) ? '1' : '0'}`)
   const bookingPlayers = activeBookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0)
-  const isGym = String(sport.name || '').trim().toLowerCase() === 'gym'
-  const activeGymPlayers = isGym
-    ? await tx.gymLog.count({ where: { status: 'active' } })
-    : 0
-  const numPlayers = (isGym ? activeGymPlayers : bookingPlayers) + (sport.manualOccupancy || 0)
+  const manualOccupancy = courts.reduce((sum: number, court: any) => sum + (court.manualOccupancy || 0), 0)
+  const numPlayers = bookingPlayers + manualOccupancy
   return {
     ...sport,
+    courts,
     courtsInUse: occupiedCourtIds.size,
     numPlayers,
+    manualOccupancy,
     courtData,
   }
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useSport } from "@/contexts/SportsContext";
 import { getGlobalScheduleMeta } from "@/actions/schedules";
+import { isPublicSport } from '@/lib/facility-rules';
 // import { useSocket } from "@/hooks/useSocket";
 import { Users, Percent, User, MapPin, Calendar, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,7 +46,7 @@ const OccupancyCard = ({ info }: { info: any }) => {
   if (!info || !info.name) return null;
 
   const totalPlayers = info.numPlayers || 0;
-  const rate = info.maxCapacity
+  const rate = isPublicSport(info)
     ? Math.round(((info.numPlayers || 0) / info.maxCapacity) * 100)
     : info.numberOfCourts
       ? Math.round((info.courtsInUse / info.numberOfCourts) * 100)
@@ -191,8 +192,7 @@ const CourtVisualization = ({ info }: { info: any }) => {
 };
 
 const OccupancyLocation = ({ info }: { info: any }) => {
-  const isGymOrSwim = info?.name?.toLowerCase() === "gym" || info?.name?.toLowerCase() === "swimming";
-  if (!info || isGymOrSwim) return null;
+  if (!info || isPublicSport(info)) return null;
 
   return (
     <motion.div
@@ -208,7 +208,7 @@ const OccupancyLocation = ({ info }: { info: any }) => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
         {(info.courtData || []).map((c: string, i: number) => {
           const [name, status] = c.split(":");
-          const isOccupied = info.maxCapacity ? info.numPlayers > 0 : status === "1";
+          const isOccupied = status === "1";
 
           return (
             <div
@@ -255,7 +255,6 @@ const TimeTable = () => {
       <div className="flex flex-col items-center gap-2 mb-8">
         <Calendar className="text-primary w-8 h-8 mb-2" />
         <h2 className="text-3xl font-black text-foreground tracking-tight">Sports Schedule</h2>
-        <p className="text-gray-500 text-sm font-medium">Published by the facility administrator</p>
       </div>
 
       {loading ? (
@@ -467,9 +466,6 @@ export default function Occupancy() {
           <h1 className="text-5xl md:text-7xl font-black text-gradient-premium mb-4 tracking-tighter">
             LIVE OCCUPANCY
           </h1>
-          <p className="text-gray-400 font-medium max-w-xl mx-auto">
-            Experience the pulse of the arena with real-time tracking, equipment analytics, and visual zone monitoring.
-          </p>
         </motion.div>
 
         <div className="flex justify-center mb-12">

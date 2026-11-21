@@ -28,7 +28,7 @@ export default function BookingScannerPage() {
         const response = await getBookings()
         if (response.success) {
             setBookings(response.data.documents.filter((booking: any) =>
-                ['pending', 'active', 'returned', 'expired', 'completed'].includes(booking.status)
+                ['pending', 'active', 'returned', 'expired'].includes(booking.status)
             ).slice(0, 20))
         }
         setBookingsLoading(false)
@@ -323,7 +323,7 @@ export default function BookingScannerPage() {
                         <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-2xl font-bold">Recent Bookings</h2>
-                                <p className="mt-1 text-sm text-muted-foreground">Includes ended bookings so equipment and student details remain available to guards.</p>
+                                <p className="mt-1 text-sm text-muted-foreground">Bookings that still need an action or review.</p>
                             </div>
                             <button
                                 type="button"

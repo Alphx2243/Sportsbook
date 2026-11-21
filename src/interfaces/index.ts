@@ -22,6 +22,7 @@ export interface Sport {
   numberOfCourts: number;
   courtsInUse: number;
   courtData?: any;
+  sportType: 'public' | 'private';
   maxCapacity?: number | null;
   numPlayers?: number | null;
   createdAt: Date;
@@ -54,6 +55,7 @@ export interface Booking {
   sportId?: string | null;
   courtId?: string | null;
   sportName: string;
+  sportType?: 'public' | 'private';
   numberOfPlayers: number;
   startTime: string;
   endTime: string;

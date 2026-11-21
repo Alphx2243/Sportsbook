@@ -3,6 +3,7 @@ import { normalizeRole } from '@/lib/roles'
 
 const BOOKING_STATUSES = new Set(['pending', 'active', 'returned', 'expired', 'completed'])
 const MATCH_STATUSES = new Set(['live', 'upcoming', 'finished'])
+const SPORT_TYPES = new Set(['public', 'private'])
 
 export function requiredString(value: unknown, field: string, maxLength = 255): string {
   if (typeof value !== 'string') throw new Error(`${field} is required.`)
@@ -47,6 +48,11 @@ export function roleValue(value: unknown): string {
 
 export function matchStatus(value: unknown): string {
   return typeof value === 'string' && MATCH_STATUSES.has(value) ? value : 'live'
+}
+
+export function sportTypeValue(value: unknown): 'public' | 'private' {
+  if (typeof value !== 'string' || !SPORT_TYPES.has(value)) throw new Error('Sport type must be public or private.')
+  return value as 'public' | 'private'
 }
 
 export function equipmentIssues(value: unknown): Array<{ name: string; count: number }> {

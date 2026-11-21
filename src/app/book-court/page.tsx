@@ -5,6 +5,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useRouter } from "next/navigation";
 import { useSport } from "@/contexts/SportsContext";
 import { secureBooking } from '@/actions/bookings';
+import { isPublicSport } from '@/lib/facility-rules'
 // import { useSocket } from "@/hooks/useSocket";
 import { Sport, User, EquipmentCounts } from "@/interfaces";
 
@@ -15,7 +16,6 @@ export default function AgniCodersBooking() {
   const [sportsData, setSportsData] = useState<Sport[]>([]);
   const [sportsList, setSportsList] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [numPlayers, setNumPlayers] = useState(1);
   const [initialInUse, setInitialInUse] = useState<Record<string, number>>({});
   const [equipmentCounts, setEquipmentCounts] = useState<Record<string, number>>({});
   const [courts, setCourts] = useState<string[]>([]);
@@ -33,9 +33,7 @@ export default function AgniCodersBooking() {
       if (!raw) return;
       const data = raw;
       
-      const data2 = data.filter((sport: Sport) => {
-        return (sport.name !== "Gym" ? true : false);
-      })
+      const data2 = data
       setSportsData(data2);
       setSportsList(data2.map((sport: Sport) => {
         return sport.name;
@@ -53,7 +51,6 @@ export default function AgniCodersBooking() {
 
   const initSport = (sport: Sport, idx: number) => {
     setSelectedIndex(idx);
-    setNumPlayers(1);
     const inUse: EquipmentCounts = {};
     const equipments = sport.equipments || [];
     equipments.forEach((eq: any) => {
@@ -99,20 +96,20 @@ export default function AgniCodersBooking() {
     }
     try {
       setSubmitting(true);
+      const selectedSport = sportsData[selectedIndex];
+      const isPublicFacility = isPublicSport(selectedSport);
       const now = new Date(); 
       const currentdate = formatISTDate(now);
       const currenttime = formatISTTime(now);
-      const endDateTime = new Date(now.getTime() + duration * 60 * 1000);
+      const endDateTime = new Date(now.getTime() + (isPublicFacility ? 120 : duration) * 60 * 1000);
       const Enddate = formatISTDate(endDateTime);
       const Endtime = formatISTTime(endDateTime);
 
-      const selectedSport = sportsData[selectedIndex];
-      const isCapacityBased = selectedSport.maxCapacity && selectedSport.maxCapacity > 0;
-      if (isCapacityBased && numPlayers > availableCourts) {
+      if (isPublicFacility && availableCourts <= 0) {
         showToast({ message: "Not enough spots available", type: "error" });
         return;
       }
-      if (!isCapacityBased && !selectedCourt) {
+      if (!isPublicFacility && !selectedCourt) {
         showToast({ message: "No court is available", type: "error" });
         return;
       }
@@ -125,19 +122,19 @@ export default function AgniCodersBooking() {
             const diff = count - (initialInUse[name] || 0);
             return diff > 0 ? `${name}:${diff}` : null;
           }).filter((x): x is string => x !== null),
-        numberOfPlayers: numPlayers,
+        numberOfPlayers: 1,
         startTime: currenttime,
         endTime: Endtime,
         date: currentdate,
         status: "pending",
-        CourtNo: isCapacityBased ? "0" : selectedCourt,
+        CourtNo: isPublicFacility ? "0" : selectedCourt,
         enddate: Enddate,
         qrdetail: JSON.stringify({
           name: user.name,
           email: user.email,
           rollNumber: user.rollNumber,
           sportName: selectedSport.name,
-          playerCount: numPlayers,
+          playerCount: 1,
           equipmentCounts: Object.fromEntries(
             Object.entries(equipmentCounts).map(([n, c]) => [n, c - (initialInUse[n] || 0)])
           ),
@@ -177,9 +174,9 @@ export default function AgniCodersBooking() {
   if (!user) return null;
 
   const selectedSportData = sportsData[selectedIndex];
-  const isCapacityBased = selectedSportData?.maxCapacity && selectedSportData.maxCapacity > 0;
+  const isPublicFacility = isPublicSport(selectedSportData || {});
 
-  const availableCourts = isCapacityBased
+  const availableCourts = isPublicFacility
     ? ((selectedSportData.maxCapacity || 0) - (selectedSportData.numPlayers || 0))
     : (selectedSportData?.numberOfCourts || 0) - (selectedSportData?.courtsInUse || 0);
 
@@ -193,12 +190,11 @@ export default function AgniCodersBooking() {
       <div className="max-w-4xl mx-auto space-y-8 mt-16 relative z-10">
         <header className="text-center">
           <h1 className="text-4xl font-bold text-gradient-premium mb-2">Court Booking</h1>
-          <p className="text-muted-foreground">Reserve your spot and get in the game</p>
         </header>
 
         <section className="glass-panel rounded-2xl p-8 shadow-xl">
           <h2 className="text-2xl font-semibold mb-6 text-foreground flex items-center gap-2">
-            <span className="w-2 h-8 bg-primary rounded-full" /> Player Details
+            <span className="w-2 h-8 bg-primary rounded-full" /> Student Details
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-4 rounded-xl bg-accent/5 border border-white/5 dark:border-white/5 border-black/5">
@@ -229,25 +225,7 @@ export default function AgniCodersBooking() {
               </select>
             </div>
 
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4">Number of Players</h3>
-              <div className="flex items-center justify-between bg-accent/5 border border-white/10 dark:border-white/10 border-black/10 rounded-xl p-3">
-                <button
-                  onClick={() => setNumPlayers((p) => Math.max(1, p - 1))}
-                  className="w-10 h-10 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary transition-colors"
-                >-</button>
-                <span className="font-bold text-xl text-foreground">{numPlayers}</span>
-                <button
-                  onClick={() => setNumPlayers((p) => p + 1)}
-                  className="w-10 h-10 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary transition-colors"
-                >+</button>
-              </div>
-              <p className="text-sm text-muted-foreground mt-2 text-right">
-                {isCapacityBased ? `Spots Left: ${availableCourts}` : `Available Courts: ${availableCourts}`}
-              </p>
-            </div>
-
-            <div>
+            {!isPublicFacility && <div>
               <h3 className="text-lg font-semibold text-foreground mb-4">Booking Duration</h3>
               <select
                 value={duration}
@@ -263,7 +241,7 @@ export default function AgniCodersBooking() {
                 <option value={180} className="bg-background text-foreground">3 Hours</option>
                 <option value={240} className="bg-background text-foreground">4 Hours</option>
               </select>
-            </div>
+            </div>}
           </div>
 
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
@@ -277,7 +255,7 @@ export default function AgniCodersBooking() {
                 const maxAvail = total - init;
                 return (
                   <div key={name} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/50">
-                    <span className="font-medium text-muted-foreground dark:text-gray-300">{name} <span className="text-xs text-muted-foreground/80 dark:text-gray-500 ml-1">(Max: {maxAvail})</span></span>
+                    <span className="font-medium text-muted-foreground dark:text-gray-300">{name}</span>
                     <div className="flex items-center space-x-3">
                       <button disabled={used <= init} onClick={() => changeEquipment(name, -1)} className="w-8 h-8 rounded bg-primary/10 hover:bg-primary/20 flex items-center justify-center disabled:opacity-30 disabled:hover:bg-primary/10 text-primary font-bold transition-colors">-</button>
                       <span className="w-6 text-center font-bold text-foreground">{used - init}</span>
@@ -289,7 +267,7 @@ export default function AgniCodersBooking() {
             </div>
           </div>
 
-          {!isCapacityBased && (
+          {!isPublicFacility && (
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-4">Select Court</h3>
               <div className="flex flex-wrap gap-4">

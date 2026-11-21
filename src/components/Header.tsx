@@ -1,14 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import QRCode from 'qrcode';
 import { UserPen, AlignRight, X, ChevronDown, LogOut, Shield, Building2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { getGymBookings } from '@/actions/gym'
 import { getAdminNavLinks, normalizeRole, ROLES } from '@/lib/roles'
 import LogoutModal from './ui/LogoutModal'
 import Button from './ui/Button'
@@ -18,13 +15,10 @@ export default function Navbar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
 
-  const [qrUrl, setQrUrl] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [desktopOpen, setDesktopOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
-  const [showQr, setShowQr] = useState(false)
-  const [hasActiveGymSession, setHasActiveGymSession] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
 
   const desktopRef = useRef(null)
@@ -42,67 +36,22 @@ export default function Navbar() {
     { name: 'Book a court', path: '/book-court' },
     { name: 'Booking history', path: '/past-bookings' },
     { name: 'Facility occupancy', path: '/rto' },
-    { name: 'Gym bookings', path: '/gym-bookings' },
   ]
   const isGuard = normalizeRole(user?.role) === ROLES.GUARD
-
-  useEffect(() => {
-    const generateQR = async () => {
-    if (!user) return;
-
-    const qrData = user.id;
-
-    try {
-      const dataUrl = await QRCode.toDataURL(qrData, {
-        width: 200,
-        margin: 2,
-      });
-
-      setQrUrl(dataUrl);
-    } catch (error) {
-      console.error("Failed to generate QR:", error);
-    }
-  };
-
-  generateQR();
-  }, [user])
-
-  useEffect(() => {
-    if (!user || isGuard) {
-      setHasActiveGymSession(false)
-      return
-    }
-
-    const checkGymSession = async () => {
-      const response = await getGymBookings(user.id)
-      if (response.success) {
-        const isActive = response.data.documents.some((session: any) => session.status === 'active' && !session.exitTime)
-        setHasActiveGymSession(isActive)
-        if (isActive) setShowQr(false)
-      }
-    }
-
-    checkGymSession()
-    const interval = window.setInterval(checkGymSession, 5_000)
-    return () => window.clearInterval(interval)
-  }, [user, isGuard])
 
   const navigateTo = useCallback((path: string) => router.push(path), [router])
 
   const toggleMobile = () => {
     setMobileOpen(o => !o)
     setMobileDropdownOpen(false)
-    setShowQr(false)
   }
   const toggleDesktopDropdown = () => {
     setDesktopOpen(o => !o)
     setAdminOpen(false)
-    setShowQr(false)
   }
   const toggleAdminDropdown = () => {
     setAdminOpen(o => !o)
     setDesktopOpen(false)
-    setShowQr(false)
   }
   const toggleMobileDropdown = () => setMobileDropdownOpen(o => !o)
 
@@ -217,39 +166,6 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               )}
-              {user && !isGuard && !hasActiveGymSession && (
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => setShowQr(s => !s)}
-                    className="px-3 py-2 rounded-md text-sm cursor-pointer font-semibold text-primary bg-primary/10 hover:bg-primary/15 transition-colors"
-                  >
-                    Gym QR
-                  </button>
-                  <AnimatePresence>
-                    {showQr && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-full mt-2 w-48 h-48 flex items-center justify-center rounded-lg border border-border bg-popover p-3 shadow-lg z-50"
-                      >
-                        {qrUrl ? (
-                          <Image
-                            src={qrUrl}
-                            alt="QR Code"
-                            width={160}
-                            height={160}
-                            className="h-[160px] w-[160px] object-contain rounded-lg"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-400">Loading QR...</p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
             </div>
           </div>
 
@@ -343,39 +259,6 @@ export default function Navbar() {
                   {link.name}
                 </Link>
               ))}
-              {user && !isGuard && !hasActiveGymSession && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowQr(s => !s)}
-                    className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10"
-                  >
-                    Gym QR
-                  </button>
-                  <AnimatePresence>
-                    {showQr && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-2 flex justify-center py-4 bg-accent rounded-lg"
-                      >
-                        {qrUrl ? (
-                          <Image
-                            src={qrUrl}
-                            alt="QR Code"
-                            width={150}
-                            height={150}
-                            className="h-[150px] w-[150px] object-contain rounded"
-                          />
-                        ) : (
-                          <p className="text-gray-500">Loading QR...</p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
               <button
                 onClick={() => {
                   navigateTo(user ? '/profile' : '/login')

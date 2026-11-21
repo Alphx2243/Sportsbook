@@ -13,53 +13,12 @@ import { createBookingQrPayload, parseBookingQrPayload, verifyBookingQrPayload }
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, resolveCourtByNo, resolveSportByName, withBookingDisplay } from '@/lib/normalized-data'
 import { expireOverdueBookings, restoreBookingEquipment } from '@/lib/booking-state'
 import { expireOverdueGymSessions } from '@/lib/gym-session'
+import { isPublicSport } from '@/lib/facility-rules'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 import { formatISTTime, getISTDate } from '@/lib/utils'
 
 export async function createBooking(data: CreateBookingInput): Promise<ActionResponse> {
-    try {
-        await ensureSelfOrAdmin(data.userId)
-        const result = await prisma.$transaction(async (tx: any) => {
-            await expireOverdueBookings(tx)
-            await expireOverdueGymSessions(tx)
-            await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${data.userId} FOR UPDATE`;
-
-            await assertNoActiveGymSession(tx, data.userId)
-
-            const existingBooking = await tx.booking.findFirst({
-                where: {
-                    userId: data.userId,
-                    status: { in: ['pending', 'active', 'returned', 'expired'] }
-                }
-            })
-
-            if (existingBooking) {
-                const msg = existingBooking.status === 'active' || existingBooking.status === 'returned' || existingBooking.status === 'expired'
-                    ? 'You already have an active booking.'
-                    : 'You already have a pending booking.';
-                throw new Error(`${msg} Please complete it before booking again.`)
-            }
-
-            const [sport]: any = await tx.$queryRaw`SELECT * FROM "Sport" WHERE "name" = ${requiredString(data.sportName, 'Sport name')} FOR UPDATE`;
-            if (!sport) throw new Error('Sport not found.')
-            const numPlayers = positiveInt(data.numberOfPlayers, 'Number of players')
-            await assertSportAvailability(tx, sport, data.CourtNo ?? undefined, numPlayers)
-            const court = await resolveCourtByNo(tx, sport.id, data.CourtNo)
-            const booking = await createBookingWithCode(tx, { ...data, numberOfPlayers: numPlayers }, sport.id, court?.id)
-            return await tx.booking.update({
-                where: { id: booking.id },
-                data: buildSignedQrUpdate(booking, data.qrdetail),
-                include: { sport: true, court: true },
-            })
-        }, interactiveTransactionOptions)
-        revalidateAvailabilityPaths()
-        // await notifySportUpdate(data.sportName, 'availability_changed');
-        return ok(withBookingDisplay(result))
-    }
-    catch (error: any) {
-        console.error('Create booking error:', error)
-        return fail(error, 'Failed to create booking')
-    }
+    return secureBooking(data)
 }
 
 export async function updateBooking(id: string, data: UpdateBookingInput): Promise<ActionResponse> {
@@ -133,6 +92,7 @@ export async function getBooking(id: string): Promise<ActionResponse> {
 
 export async function getBookings(filters: { userId?: string; status?: string; date?: string; timeRange?: string } = {}): Promise<ActionResponse<{ documents: any[], total: number }>> {
     try {
+        await expireOverdueBookings(prisma)
         const actor = await requireUser()
         const actorRole = normalizeRole(actor.role)
         const canManageBookings = actorRole === ROLES.ADMIN || actorRole === ROLES.GUARD
@@ -181,6 +141,9 @@ export async function extendBooking(bookingId: string, extensionMinutes: number)
         const updatedBooking = await prisma.$transaction(async (tx: any) => {
             const [booking]: any = await tx.$queryRaw`SELECT * FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE`;
             if (!booking) throw new Error('Booking not found');
+            const sport = await tx.sport.findUnique({ where: { id: booking.sportId }, select: { sportType: true } })
+            if (!sport) throw new Error('Sport not found.')
+            if (isPublicSport(sport)) throw new Error('Public facility sessions are limited to two hours.')
 
             const originalStartDate = new Date(booking.startAt);
             const currentEndDate = new Date(booking.endAt);
@@ -295,6 +258,9 @@ export async function requestReturn(bookingId: string): Promise<ActionResponse> 
             if (!booking || booking.status !== 'active') {
                 throw new Error('Booking not found or not active');
             }
+            const sport = await tx.sport.findUnique({ where: { id: booking.sportId }, select: { sportType: true } })
+            if (!sport) throw new Error('Sport not found.')
+            if (isPublicSport(sport)) throw new Error('End public facility bookings directly instead.')
 
             await tx.booking.update({
                 where: { id: bookingId },
@@ -318,21 +284,47 @@ export async function requestReturn(bookingId: string): Promise<ActionResponse> 
     }
 }
 
+export async function endPublicBooking(bookingId: string): Promise<ActionResponse> {
+    try {
+        const booking = await assertBookingAccess(bookingId)
+        if (!isPublicSport(booking.sport)) throw new Error('Only public facility bookings can be ended directly.')
+
+        await prisma.$transaction(async (tx: any) => {
+            const current = await tx.booking.findUnique({
+                where: { id: bookingId },
+                include: { sport: { select: { sportType: true } } },
+            })
+            if (!current || current.status !== 'active' || !isPublicSport(current.sport)) {
+                throw new Error('Booking is not active.')
+            }
+            await tx.booking.update({
+                where: { id: bookingId },
+                data: { status: 'completed', endAt: getISTDate() },
+            })
+            await restoreBookingEquipment(tx, bookingId)
+        }, interactiveTransactionOptions)
+
+        revalidateAvailabilityPaths()
+        revalidatePath('/dashboard')
+        return ok(null)
+    } catch (error: any) {
+        return fail(error, 'Failed to end public facility booking')
+    }
+}
+
 export async function secureBooking(data: CreateBookingInput): Promise<ActionResponse> {
     try {
         await ensureSelfOrAdmin(data.userId)
         const issues = equipmentIssues(data.equipmentsIssued)
         const result = await prisma.$transaction(async (tx: any) => {
             await expireOverdueBookings(tx)
-            await expireOverdueGymSessions(tx)
             await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${data.userId} FOR UPDATE`;
 
-            await assertNoActiveGymSession(tx, data.userId)
-
             const existingBooking = await tx.booking.findFirst({
-                where: { userId: data.userId, status: { in: ['pending', 'active', 'returned', 'expired'] } }
+                where: { userId: data.userId, status: { in: ['pending', 'active', 'returned', 'expired'] } },
+                include: { sport: { select: { sportType: true } } },
             })
-            if (existingBooking) {
+            if (existingBooking && !(existingBooking.status === 'expired' && isPublicSport(existingBooking.sport))) {
                 const msg = existingBooking.status === 'active' || existingBooking.status === 'returned' || existingBooking.status === 'expired'
                     ? 'You already have an active booking.'
                     : 'You already have a pending booking.';
@@ -343,11 +335,26 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
             if (!sport) throw new Error('Sport not found.')
 
             const numPlayers = positiveInt(data.numberOfPlayers, 'Number of players')
+            if (numPlayers !== 1) throw new Error('Bookings reserve one student at a time.')
             const courtNo = data.CourtNo
             await assertSportAvailability(tx, sport, courtNo ?? undefined, numPlayers)
 
-            const court = await resolveCourtByNo(tx, sport.id, data.CourtNo)
-            const booking = await createBookingWithCode(tx, { ...data, numberOfPlayers: numPlayers }, sport.id, court?.id)
+            const court = isPublicSport(sport) ? null : await resolveCourtByNo(tx, sport.id, data.CourtNo)
+            const now = getISTDate()
+            const endAt = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+            const bookingData = isPublicSport(sport)
+                ? {
+                    ...data,
+                    numberOfPlayers: numPlayers,
+                    CourtNo: '0',
+                    date: dateToDateString(now),
+                    startTime: dateToTimeString(now),
+                    enddate: dateToDateString(endAt),
+                    endTime: dateToTimeString(endAt),
+                    status: 'active',
+                }
+                : { ...data, numberOfPlayers: numPlayers }
+            const booking = await createBookingWithCode(tx, bookingData, sport.id, court?.id)
 
             for (const issued of issues) {
                 const equipment = await tx.equipment.findFirst({ where: { name: issued.name, sportId: sport.id } });
@@ -366,7 +373,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
 
             return await tx.booking.update({
                 where: { id: booking.id },
-                data: buildSignedQrUpdate(booking, data.qrdetail),
+                data: isPublicSport(sport) ? { scanned: true } : buildSignedQrUpdate(booking, data.qrdetail),
                 include: { sport: true, court: true },
             });
         }, interactiveTransactionOptions)
@@ -449,51 +456,7 @@ export async function activateBooking(qrData: string): Promise<ActionResponse> {
 }
 
 export async function AddGymQRLog(UserGymId: string): Promise<ActionResponse> {
-    try {
-        await ensureRoles([ROLES.ADMIN, ROLES.GUARD])
-        const now = getISTDate()
-        const result = await prisma.$transaction(async (tx: any) => {
-            await expireOverdueGymSessions(tx)
-            await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${UserGymId} FOR UPDATE`
-            const existingLog = await tx.gymLog.findFirst({
-                where: {
-                    userId: UserGymId,
-                    status: { in: ['active'] }
-                }
-            })
-            if (existingLog) {
-                throw new Error('This student already has an active gym booking. Use End booking to finish it.')
-            }
-
-            const conflictingBooking = await tx.booking.findFirst({
-                where: { userId: UserGymId, status: { in: ['pending', 'active', 'returned', 'expired'] } },
-                select: { id: true },
-            })
-            if (conflictingBooking) {
-                throw new Error('This student already has an unfinished sports booking.')
-            }
-
-            const log = await tx.gymLog.create({
-                data: {
-                    id: randomUUID(),
-                    userId: UserGymId,
-                    entryTime: now,
-                    status: 'active',
-                    createdAt: now,
-                    updatedAt: now,
-                }
-            })
-            return withGymScanDisplay('created', log)
-        }, interactiveTransactionOptions)
-        revalidatePath('/booking-scanner')
-        revalidatePath('/dashboard')
-        revalidatePath('/rto')
-        return ok(result)
-    }
-    catch (error: any) {
-        console.error('Error in AddGymQRLog: ', error)
-        return fail(error, 'Failed to process gym QR')
-    }
+    return fail(new Error('Gym QR check-in has been retired. Create a Gym booking instead.'))
 }
 
 export async function endGymBooking(gymLogId: string): Promise<ActionResponse> {
@@ -542,7 +505,8 @@ function revalidateAvailabilityPaths() {
 
 async function assertSportAvailability(tx: any, sport: any, courtNo: string | undefined, numPlayers: number) {
     const activeBookings = await tx.booking.findMany({ where: { sportId: sport.id, status: { in: ['pending', 'active', 'returned'] } } })
-    if (sport.maxCapacity && sport.maxCapacity > 0) {
+    if (isPublicSport(sport)) {
+        if (!sport.maxCapacity || sport.maxCapacity <= 0) throw new Error('Public facilities require a capacity.')
         const alreadyBookedPlayers = activeBookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0) + (sport.manualOccupancy || 0)
         if (alreadyBookedPlayers + numPlayers > sport.maxCapacity) throw new Error('Facility is full!')
         return
@@ -550,18 +514,8 @@ async function assertSportAvailability(tx: any, sport: any, courtNo: string | un
 
     if (!courtNo) throw new Error('Please select a court.')
     const requestedCourt = await resolveCourtByNo(tx, sport.id, courtNo)
-    if (!requestedCourt?.isActive) throw new Error('Court is not available!')
+    if (!requestedCourt?.isActive || requestedCourt.manualOccupied) throw new Error('Court is not available!')
     if (activeBookings.some((booking: any) => booking.courtId === requestedCourt.id)) throw new Error('Court already booked!')
-}
-
-async function assertNoActiveGymSession(tx: any, userId: string) {
-    const activeGymSession = await tx.gymLog.findFirst({
-        where: { userId, status: 'active' },
-        select: { id: true },
-    })
-    if (activeGymSession) {
-        throw new Error('You cannot make a sports booking while your Gym session is active. Please end your Gym booking first.')
-    }
 }
 
 function withGymScanDisplay(action: 'created' | 'finished', log: any) {

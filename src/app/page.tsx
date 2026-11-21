@@ -9,6 +9,7 @@ import { CalendarIcon, ActivityIcon, MapPinIcon, UsersIcon, ClockIcon, Trophy, }
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
+import { isPublicSport } from '@/lib/facility-rules'
 
 const features = [
   {
@@ -268,7 +269,7 @@ export default function Home() {
                           <div>
                             <p className="text-sm text-muted-foreground mb-1">Overall Status</p>
                             <div className="flex items-center gap-2">
-                              {selected.maxCapacity ? (
+                              {isPublicSport(selected) ? (
                                 <>
                                   <div className={`w-2 h-2 rounded-full ${(selected.numPlayers || 0) < selected.maxCapacity ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'}`} />
                                   <span className="text-foreground font-medium">
@@ -297,13 +298,13 @@ export default function Home() {
                         {selected.courtData && selected.courtData.length > 0 && (
                           <div className="pt-4 border-t border-white/5 dark:border-white/5 border-black/5">
                             {
-                              selected && selected.name?.toLowerCase() !== "gym" && selected.name?.toLowerCase() !== "swimming" && (
+                              selected && !isPublicSport(selected) && (
                                 <>
                                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-3">Court Availability</p>
                                   <div className="grid grid-cols-3 gap-2">
                                     {selected.courtData.map((c: any, i: number) => {
                                       const [name, status] = c.split(':');
-                                      const isOccupied = selected.maxCapacity ? (selected.numPlayers > 0) : (status === '1');
+                                      const isOccupied = status === '1';
                                       return (
                                         <div
                                           key={i}

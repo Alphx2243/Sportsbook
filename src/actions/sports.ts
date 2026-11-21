@@ -7,9 +7,10 @@ import { ActionResponse } from '@/interfaces'
 import { fail, ok } from '@/lib/action-response'
 import { ensureRoles } from '@/lib/auth-utils'
 import { ROLES } from '@/lib/roles'
-import { equipmentList, nonNegativeInt, requiredString } from '@/lib/validation'
+import { equipmentList, nonNegativeInt, positiveInt, requiredString, sportTypeValue } from '@/lib/validation'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, syncCourtsForSport, withSportAvailability } from '@/lib/normalized-data'
-import { expireOverdueGymSessions } from '@/lib/gym-session'
+import { expireOverdueBookings } from '@/lib/booking-state'
+import { isPublicSport } from '@/lib/facility-rules'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 
 async function withSportView(sport: any) {
@@ -20,8 +21,8 @@ async function withSportView(sport: any) {
 
 export async function getSports(): Promise<ActionResponse<{ documents: any[], total: number }>> {
     try {
-        await expireOverdueGymSessions(prisma)
-        const [sports, activeBookings, activeGymPlayers] = await Promise.all([
+        await expireOverdueBookings(prisma)
+        const [sports, activeBookings] = await Promise.all([
           prisma.sport.findMany({
             orderBy: { name: 'asc' },
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } }
@@ -30,7 +31,6 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
             where: { status: { in: ['pending', 'active', 'returned'] } },
             select: { sportId: true, courtId: true, numberOfPlayers: true },
           }),
-          prisma.gymLog.count({ where: { status: 'active' } }),
         ])
         const bookingsBySport = new Map<string, any[]>()
         for (const booking of activeBookings) {
@@ -41,15 +41,21 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
         const documents = sports.map((sport: any) => {
             const { Equipment, ...rest } = sport
             const bookings = bookingsBySport.get(sport.id) || []
-            const occupiedCourtIds = new Set(bookings.map((booking: any) => booking.courtId).filter(Boolean))
+            const bookedCourtIds = new Set(bookings.map((booking: any) => booking.courtId).filter(Boolean))
+            const courts = (sport.courts || []).map((court: any) => ({ ...court, isBooked: bookedCourtIds.has(court.id) }))
             const bookingPlayers = bookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0)
-            const isGym = String(sport.name).trim().toLowerCase() === 'gym'
+            const manualOccupancy = courts.reduce((sum: number, court: any) => sum + (court.manualOccupancy || 0), 0)
+            const occupiedCourtIds = isPublicSport(sport)
+                ? new Set()
+                : new Set(courts.filter((court: any) => court.manualOccupied || court.isBooked).map((court: any) => court.id))
             return {
                 ...rest,
+                courts,
                 equipments: Equipment || [],
                 courtsInUse: occupiedCourtIds.size,
-                numPlayers: (isGym ? activeGymPlayers : bookingPlayers) + sport.manualOccupancy,
-                courtData: (sport.courts || []).map((court: any) => `${court.name}:${occupiedCourtIds.has(court.id) ? '1' : '0'}`),
+                manualOccupancy,
+                numPlayers: bookingPlayers + manualOccupancy,
+                courtData: courts.map((court: any) => `${court.name}:${occupiedCourtIds.has(court.id) ? '1' : '0'}`),
             }
         })
         return ok({ documents, total: documents.length })
@@ -62,7 +68,7 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
 
 export async function getSport(id: string): Promise<ActionResponse> {
     try {
-        await expireOverdueGymSessions(prisma)
+        await expireOverdueBookings(prisma)
         const sport = await prisma.sport.findUnique({
             where: { id },
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } },
@@ -126,13 +132,15 @@ export async function createSport(data: any): Promise<ActionResponse> {
     try {
         await ensureRoles([ROLES.ADMIN, ROLES.FACILITY_MANAGER])
         const equipments = equipmentList(data.totalEquipments)
-        const numberOfCourts = nonNegativeInt(data.courts, 'Number of courts')
+        const sportType = sportTypeValue(data.sportType)
+        const numberOfCourts = sportType === 'public' ? 1 : nonNegativeInt(data.courts, 'Number of courts')
         const sport = await prisma.$transaction(async (tx: any) => {
             const createdSport = await tx.sport.create({
                 data: {
                     name: requiredString(data.name, 'Sport name'),
                     numberOfCourts,
-                    maxCapacity: data.maxCapacity ? nonNegativeInt(data.maxCapacity, 'Max capacity') : null,
+                    sportType,
+                    maxCapacity: sportType === 'public' ? positiveInt(data.maxCapacity, 'Max capacity') : null,
                     Equipment: {
                         create: equipments.map((eq) => ({
                             id: randomUUID(),

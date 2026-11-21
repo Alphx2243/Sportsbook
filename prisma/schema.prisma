@@ -32,6 +32,11 @@ enum GymLogStatus {
   completed
 }
 
+enum SportType {
+  public
+  private
+}
+
 model User {
   id               String    @id @default(uuid())
   email            String    @unique
@@ -57,6 +62,7 @@ model Sport {
   numberOfCourts Int
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  sportType      SportType   @default(private)
   maxCapacity    Int?
   manualOccupancy Int       @default(0)
   Equipment      Equipment[]
@@ -204,6 +210,8 @@ model Court {
   name         String
   courtNumber  Int?
   isActive     Boolean   @default(true)
+  manualOccupied Boolean @default(false)
+  manualOccupancy Int    @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sport        Sport     @relation(fields: [sportId], references: [id], onDelete: Cascade)

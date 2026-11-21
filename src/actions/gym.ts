@@ -8,26 +8,7 @@ import { dateToDateString, dateToTimeString } from '@/lib/normalized-data'
 import { expireOverdueGymSessions } from '@/lib/gym-session'
 
 export async function handleGymScan(userId: string): Promise<ActionResponse> {
-    try {
-        await ensureSelfOrAdmin(userId)
-        return await prisma.$transaction(async (tx: any) => {
-            await expireOverdueGymSessions(tx)
-            const [user]: any = await tx.$queryRaw`SELECT id, name FROM "User" WHERE id = ${userId} FOR UPDATE`;
-            if (!user) {
-                return fail(new Error('User not found')) as ActionResponse;
-            }
-
-            const activeLog = await tx.gymLog.findFirst({ where: { userId, exitTime: null } });
-            if (activeLog) return fail(new Error('This student already has an active gym booking.')) as ActionResponse;
-
-            const newLog = await tx.gymLog.create({ data: { userId, entryTime: new Date() } });
-            return ok({ type: 'check-in', user: user.name, log: newLog }) as ActionResponse;
-        }, interactiveTransactionOptions);
-    }
-    catch (error: any) {
-        console.error('Gym scan error:', error)
-        return fail(error, 'Failed to process gym scan')
-    }
+    return fail(new Error('Gym QR check-in has been retired. Create a Gym booking instead.'))
 }
 
 export async function getGymStats(userId: string): Promise<ActionResponse> {

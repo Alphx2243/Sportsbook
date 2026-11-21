@@ -17,7 +17,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import ExtendTimerModal from '@/components/ui/ExtendTimerModal';
-import { deleteBooking, endGymBooking, expireBooking, getBookings, requestReturn } from '@/actions/bookings';
+import { deleteBooking, endGymBooking, endPublicBooking, expireBooking, getBookings, requestReturn } from '@/actions/bookings';
 import { getGymBookings } from '@/actions/gym';
 // import { useSocket } from '@/hooks/useSocket';
 
@@ -25,6 +25,7 @@ interface Booking {
     id: string;
     bookingCode: string;
     sportName: string;
+    sportType?: 'public' | 'private';
     courtNo: string | number;
     startTime: string;
     endTime: string;
@@ -83,7 +84,7 @@ export default function Dashboard() {
             ]);
             if (res.success) {
                 const booking = res.data.documents.find((b: any) => 
-                    b.status === 'active' || b.status === 'pending' || b.status === 'returned' || b.status === 'expired'
+                    b.status === 'active' || b.status === 'pending' || b.status === 'returned' || (b.status === 'expired' && b.sportType !== 'public')
                 );
                 if (booking) {
                     setActiveBooking(booking);
@@ -266,7 +267,6 @@ export default function Dashboard() {
                         <h1 className="text-4xl md:text-5xl font-bold text-gradient-premium mb-2 tracking-tight">
                             Hello, {user.name?.split(' ')[0] || 'Athlete'}
                         </h1>
-                        <p className="text-muted-foreground text-lg font-light tracking-wide">Welcome back to your command center.</p>
                     </motion.div>
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -384,7 +384,7 @@ export default function Dashboard() {
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-primary hover:bg-primary/10 border-primary/20"
-                                                        disabled={activeBooking.status === 'returned' || activeBooking.status === 'expired' || activeBooking.status === 'pending'}
+                                                        disabled={activeBooking.sportType === 'public' || activeBooking.status === 'returned' || activeBooking.status === 'expired' || activeBooking.status === 'pending'}
                                                         onClick={() => setShowExtensionModal(true)}
                                                     >
                                                         <Plus className="w-4 h-4 mr-2" />
@@ -396,14 +396,19 @@ export default function Dashboard() {
                                                         className="text-yellow-500 hover:bg-yellow-500/10 border-yellow-500/20"
                                                         disabled={activeBooking.status === 'returned' || activeBooking.status === 'expired' || activeBooking.status === 'pending'}
                                                         onClick={async () => {
-                                                            if (confirm('Submit this session for equipment return approval?')) {
-                                                                await requestReturn(activeBooking.id);
-                                                                fetchActiveBooking();
-                                                            }
+                                                            const isPublic = activeBooking.sportType === 'public';
+                                                            if (!confirm(isPublic ? 'End this public facility session?' : 'Submit this session for equipment return approval?')) return;
+                                                            const result = isPublic
+                                                                ? await endPublicBooking(activeBooking.id)
+                                                                : await requestReturn(activeBooking.id);
+                                                            if (!result.success) alert(result.error);
+                                                            await fetchActiveBooking();
                                                         }}
                                                     >
                                                         <LogOut className="w-4 h-4 mr-2" />
-                                                        {activeBooking.status === 'returned' || activeBooking.status === 'expired' ? 'Awaiting Approval' : 'End Session'}
+                                                        {activeBooking.status === 'returned' || activeBooking.status === 'expired'
+                                                            ? 'Awaiting Approval'
+                                                            : 'End Session'}
                                                     </Button>
                                                     {activeBooking.status === 'pending' && (
                                                         <Button

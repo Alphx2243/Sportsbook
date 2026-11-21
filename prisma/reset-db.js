@@ -16,6 +16,7 @@ const prisma = new PrismaClient({ adapter })
 const sports = [
     {
         name: 'Badminton',
+        sportType: 'private',
         numberOfCourts: 3,
         courts: ['Court 1', 'Court 2', 'Court 3'],
         equipment: [
@@ -25,6 +26,7 @@ const sports = [
     },
     {
         name: 'Squash',
+        sportType: 'private',
         numberOfCourts: 2,
         courts: ['Court 1', 'Court 2'],
         equipment: [
@@ -34,6 +36,7 @@ const sports = [
     },
     {
         name: 'Table Tennis',
+        sportType: 'private',
         numberOfCourts: 4,
         courts: ['Table 1', 'Table 2', 'Table 3', 'Table 4'],
         equipment: [
@@ -43,6 +46,7 @@ const sports = [
     },
     {
         name: 'Tennis',
+        sportType: 'private',
         numberOfCourts: 2,
         courts: ['Court 1', 'Court 2'],
         equipment: [
@@ -50,8 +54,8 @@ const sports = [
             { name: 'Ball', total: 40 },
         ],
     },
-    { name: 'Swimming', numberOfCourts: 1, maxCapacity: 20, courts: ['RPool'], equipment: [] },
-    { name: 'Gym', numberOfCourts: 1, maxCapacity: 50, courts: ['Main Gym'], equipment: [] },
+    { name: 'Swimming', sportType: 'public', numberOfCourts: 1, maxCapacity: 20, courts: ['RPool'], equipment: [] },
+    { name: 'Gym', sportType: 'public', numberOfCourts: 1, maxCapacity: 50, courts: ['Main Gym'], equipment: [] },
 ]
 
 const users = [
@@ -79,6 +83,7 @@ async function main() {
         const created = await prisma.sport.create({
             data: {
                 name: sport.name,
+                sportType: sport.sportType,
                 numberOfCourts: sport.numberOfCourts,
                 maxCapacity: sport.maxCapacity,
                 manualOccupancy: 0,
@@ -87,6 +92,9 @@ async function main() {
                         id: randomUUID(),
                         name,
                         courtNumber: index + 1,
+                        isActive: true,
+                        manualOccupied: false,
+                        manualOccupancy: 0,
                     })),
                 },
                 Equipment: {
@@ -94,6 +102,7 @@ async function main() {
                         id: randomUUID(),
                         name: equipment.name,
                         total: equipment.total,
+                        inUse: 0,
                         updatedAt: new Date(),
                     })),
                 },

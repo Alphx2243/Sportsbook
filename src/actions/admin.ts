@@ -5,11 +5,12 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResponse } from '@/interfaces'
 import { ensureAdmin, ensureRoles, publicUserSelect } from '@/lib/auth-utils'
 import { v4 as uuidv4 } from 'uuid'
-import { equipmentList, matchStatus, nonNegativeInt, requiredString, roleValue } from '@/lib/validation'
+import { equipmentList, matchStatus, nonNegativeInt, positiveInt, requiredString, roleValue, sportTypeValue } from '@/lib/validation'
 import { ROLES } from '@/lib/roles'
 import { resolveSportByName, syncCourtsForSport, withMatchDisplay, withUserDisplay } from '@/lib/normalized-data'
 import { fail, ok } from '@/lib/action-response'
 import { restoreBookingEquipment } from '@/lib/booking-state'
+import { isPublicSport } from '@/lib/facility-rules'
 // import { notifyMatchesUpdate } from '@/lib/socket-notify'
 
 export async function getAdminStats(): Promise<ActionResponse> {
@@ -92,17 +93,29 @@ export async function updateSportInventory(sportId: string, data: any): Promise<
         await ensureRoles([ROLES.ADMIN, ROLES.FACILITY_MANAGER]);
         const parsedEquipment = data.totalEquipments ? equipmentList(data.totalEquipments) : undefined
         await prisma.$transaction(async (tx: any) => {
+            const existingSport = await tx.sport.findUnique({ where: { id: sportId } })
+            if (!existingSport) throw new Error('Sport not found.')
+            const sportType = data.sportType !== undefined ? sportTypeValue(data.sportType) : existingSport.sportType
+            const numberOfCourts = sportType === 'public'
+                ? 1
+                : data.numberOfCourts !== undefined
+                    ? nonNegativeInt(data.numberOfCourts, 'Number of courts')
+                    : existingSport.numberOfCourts
+            const maxCapacity = sportType === 'public'
+                ? positiveInt(data.maxCapacity ?? existingSport.maxCapacity, 'Max capacity')
+                : null
             const updatedSport = await tx.sport.update({
                 where: { id: sportId },
                 data: {
-                    numberOfCourts: data.numberOfCourts !== undefined ? nonNegativeInt(data.numberOfCourts, 'Number of courts') : undefined,
-                    maxCapacity: data.maxCapacity !== undefined ? nonNegativeInt(data.maxCapacity, 'Max capacity') : undefined,
+                    sportType,
+                    numberOfCourts,
+                    maxCapacity,
                 }
             })
             await syncCourtsForSport(
                 tx,
                 sportId,
-                data.numberOfCourts !== undefined ? nonNegativeInt(data.numberOfCourts, 'Number of courts') : updatedSport.numberOfCourts,
+                updatedSport.numberOfCourts,
                 data.CourtData
             )
 
@@ -149,19 +162,42 @@ export async function updateSportInventory(sportId: string, data: any): Promise<
     }
 }
 
-export async function updateManualOccupancy(sportId: string, manualOccupancy: unknown): Promise<ActionResponse> {
+export async function updateCourtManualStatus(courtId: string, manualOccupied: unknown, manualOccupancy: unknown): Promise<ActionResponse> {
     try {
         await ensureAdmin()
-        await prisma.sport.update({
-            where: { id: sportId },
-            data: { manualOccupancy: nonNegativeInt(manualOccupancy, 'Manual occupancy') },
-        })
+        if (typeof manualOccupied !== 'boolean') throw new Error('Court availability must be selected.')
+
+        await prisma.$transaction(async (tx: any) => {
+            const existingCourt = await tx.court.findUnique({
+                where: { id: courtId },
+                select: { sportId: true, sport: { select: { maxCapacity: true } } },
+            })
+            if (!existingCourt) throw new Error('Court not found.')
+            const court = await tx.court.update({
+                where: { id: courtId },
+                data: {
+                    manualOccupied: isPublicSport(existingCourt.sport) ? false : manualOccupied,
+                    manualOccupancy: nonNegativeInt(manualOccupancy, 'Manual occupancy'),
+                },
+                select: { sportId: true },
+            })
+            const occupancy = await tx.court.aggregate({
+                where: { sportId: court.sportId, isActive: true },
+                _sum: { manualOccupancy: true },
+            })
+            await tx.sport.update({
+                where: { id: court.sportId },
+                data: { manualOccupancy: occupancy._sum.manualOccupancy || 0 },
+            })
+        }, interactiveTransactionOptions)
+
         revalidatePath('/')
+        revalidatePath('/book-court')
         revalidatePath('/rto')
         revalidatePath('/admin/sports')
         return ok(null)
     } catch (error: any) {
-        return fail(error, 'Failed to update manual occupancy')
+        return fail(error, 'Failed to update court status')
     }
 }
 

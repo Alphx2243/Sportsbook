@@ -10,10 +10,11 @@ import {
    Upload
 } from 'lucide-react'
 import { getSports, createSport } from '@/actions/sports'
-import { updateManualOccupancy, updateSportInventory } from '@/actions/admin'
+import { updateCourtManualStatus, updateSportInventory } from '@/actions/admin'
 import { uploadGlobalSchedule } from '@/actions/schedules'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeRole, ROLES } from '@/lib/roles'
+import { isPublicSport } from '@/lib/facility-rules'
 import { Card, CardContent } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -35,17 +36,22 @@ export default function SportsManagement() {
    const [editingId, setEditingId] = useState<string | null>(null)
    const [editData, setEditData] = useState<any>({})
    const [isAdding, setIsAdding] = useState(false)
-   const [newSportData, setNewSportData] = useState<any>({ name: '', numberOfCourts: '', totalEquipments: '' })
+   const [newSportData, setNewSportData] = useState<any>({ name: '', sportType: 'private', numberOfCourts: '', maxCapacity: '', totalEquipments: '' })
    const [processing, setProcessing] = useState(false)
    const [uploadingSchedule, setUploadingSchedule] = useState(false)
-   const [updatingOccupancyFor, setUpdatingOccupancyFor] = useState<string | null>(null)
-   const [manualOccupancies, setManualOccupancies] = useState<Record<string, string>>({})
+   const [updatingCourtId, setUpdatingCourtId] = useState<string | null>(null)
+   const [courtUpdates, setCourtUpdates] = useState<Record<string, { manualOccupied: boolean, manualOccupancy: string }>>({})
 
    const fetchSports = async () => {
       const res = await getSports()
       if (res.success) {
          setSports(res.data.documents)
-         setManualOccupancies(Object.fromEntries(res.data.documents.map((sport: any) => [sport.id, String(sport.manualOccupancy || 0)])))
+         setCourtUpdates(Object.fromEntries(res.data.documents.flatMap((sport: any) =>
+            (sport.courts || []).map((court: any) => [court.id, {
+               manualOccupied: Boolean(court.manualOccupied),
+               manualOccupancy: String(court.manualOccupancy || 0),
+            }])
+         )))
       }
       setLoading(false)
    }
@@ -58,8 +64,8 @@ export default function SportsManagement() {
       setEditingId(sport.id)
       setEditData({
          numberOfCourts: sport.numberOfCourts,
+         sportType: sport.sportType,
          maxCapacity: sport.maxCapacity || '',
-         manualOccupancy: sport.manualOccupancy || 0,
          courtNames: (sport.courtData || []).map((court: string) => court.split(':')[0]).join(', '),
          totalEquipments: (sport.equipments || []).map((e: any) => `${e.name}:${e.total}`).join(', '),
       })
@@ -69,20 +75,11 @@ export default function SportsManagement() {
       setProcessing(true)
       const formattedData = {
          ...editData,
-         manualOccupancy: undefined,
          CourtData: editData.courtNames.split(',').map((name: string) => `${name.trim()}:0`).filter((name: string) => name !== ':0'),
          totalEquipments: editData.totalEquipments.split(',').map((s: string) => s.trim()).filter(Boolean)
       }
       const res = await updateSportInventory(id, formattedData)
       if (res.success) {
-         if (isAdmin) {
-            const occupancyRes = await updateManualOccupancy(id, editData.manualOccupancy)
-            if (!occupancyRes.success) {
-               alert(occupancyRes.error)
-               setProcessing(false)
-               return
-            }
-         }
          setEditingId(null)
          await fetchSports()
       } else {
@@ -95,14 +92,16 @@ export default function SportsManagement() {
       setProcessing(true)
       const formattedData = {
          name: newSportData.name,
-         courts: newSportData.numberOfCourts,
+         sportType: newSportData.sportType,
+         courts: newSportData.sportType === 'public' ? 1 : newSportData.numberOfCourts,
+         maxCapacity: newSportData.maxCapacity,
          totalEquipments: newSportData.totalEquipments ? newSportData.totalEquipments.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-         CourtData: Array.from({ length: parseInt(newSportData.numberOfCourts) || 0 }, (_, i) => `Court ${i + 1}:0`)
+         CourtData: Array.from({ length: newSportData.sportType === 'public' ? 1 : parseInt(newSportData.numberOfCourts) || 0 }, (_, i) => `Court ${i + 1}:0`)
       }
       const res = await createSport(formattedData)
       if (res.success) {
          setIsAdding(false)
-         setNewSportData({ name: '', numberOfCourts: '', totalEquipments: '' })
+         setNewSportData({ name: '', sportType: 'private', numberOfCourts: '', maxCapacity: '', totalEquipments: '' })
          fetchSports()
       } else {
          alert(res.error)
@@ -126,12 +125,14 @@ export default function SportsManagement() {
       }
    }
 
-   const handleManualOccupancyUpdate = async (sportId: string) => {
-      setUpdatingOccupancyFor(sportId)
-      const response = await updateManualOccupancy(sportId, manualOccupancies[sportId] || '0')
+   const handleCourtStatusUpdate = async (courtId: string) => {
+      const update = courtUpdates[courtId]
+      if (!update) return
+      setUpdatingCourtId(courtId)
+      const response = await updateCourtManualStatus(courtId, update.manualOccupied, update.manualOccupancy)
       if (!response.success) alert(response.error)
       else await fetchSports()
-      setUpdatingOccupancyFor(null)
+      setUpdatingCourtId(null)
    }
 
    if (loading) {
@@ -198,15 +199,38 @@ export default function SportsManagement() {
                      />
                   </div>
                   <div className="space-y-3">
+                     <label className="text-sm flex gap-3 font-medium text-muted-foreground px-1">Sport Type</label>
+                     <select
+                        className="w-full bg-background border border-input p-4 rounded-xl font-medium text-base"
+                        value={newSportData.sportType}
+                        onChange={(e) => setNewSportData({ ...newSportData, sportType: e.target.value, numberOfCourts: e.target.value === 'public' ? '1' : newSportData.numberOfCourts })}
+                     >
+                        <option value="private">Private — one student per court</option>
+                        <option value="public">Public — shared facility capacity</option>
+                     </select>
+                  </div>
+                  <div className="space-y-3">
                      <label className="text-sm flex gap-3 font-medium text-muted-foreground px-1">Total Courts</label>
                      <Input
                         type="number"
                         placeholder="0"
                         className="bg-background border-input p-4 rounded-xl font-medium focus:border-emerald-500/50 text-base"
-                        value={newSportData.numberOfCourts}
+                        value={newSportData.sportType === 'public' ? '1' : newSportData.numberOfCourts}
+                        disabled={newSportData.sportType === 'public'}
                         onChange={(e: any) => setNewSportData({ ...newSportData, numberOfCourts: e.target.value })}
                      />
                   </div>
+                  {newSportData.sportType === 'public' && <div className="space-y-3">
+                     <label className="text-sm flex gap-3 font-medium text-muted-foreground px-1">Facility Capacity</label>
+                     <Input
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 50"
+                        className="bg-background border-input p-4 rounded-xl font-medium focus:border-emerald-500/50 text-base"
+                        value={newSportData.maxCapacity}
+                        onChange={(e: any) => setNewSportData({ ...newSportData, maxCapacity: e.target.value })}
+                     />
+                  </div>}
                   <div className="space-y-3">
                      <label className="text-sm flex gap-3 font-medium text-muted-foreground px-1">Equipment Inventory (e.g. Racket:10)</label>
                      <Input
@@ -258,35 +282,37 @@ export default function SportsManagement() {
                               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 flex-1">
                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
+                                       <label className="text-sm font-medium text-muted-foreground px-1">Sport Type</label>
+                                       <select
+                                          className="w-full bg-background border border-input p-4 rounded-xl font-medium text-base"
+                                          value={editData.sportType}
+                                          onChange={(e) => setEditData({ ...editData, sportType: e.target.value, numberOfCourts: e.target.value === 'public' ? '1' : editData.numberOfCourts })}
+                                       >
+                                          <option value="private">Private — one student per court</option>
+                                          <option value="public">Public — shared facility capacity</option>
+                                       </select>
+                                    </div>
+                                    <div className="space-y-2">
                                        <label className="text-sm font-medium text-muted-foreground px-1">Total Courts</label>
                                        <Input
                                           type="number"
                                           className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
-                                          value={editData.numberOfCourts}
+                                          value={editData.sportType === 'public' ? '1' : editData.numberOfCourts}
+                                          disabled={editData.sportType === 'public'}
                                           onChange={(e: any) => setEditData({ ...editData, numberOfCourts: e.target.value })}
                                        />
                                     </div>
-                                    <div className="space-y-2">
+                                    {editData.sportType === 'public' && <div className="space-y-2">
                                        <label className="text-sm font-medium text-muted-foreground px-1">Max Capacity</label>
                                        <Input
                                           type="number"
+                                          min="1"
                                           className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
                                           value={editData.maxCapacity}
                                           onChange={(e: any) => setEditData({ ...editData, maxCapacity: e.target.value })}
                                        />
-                                    </div>
-                                    {isAdmin && <div className="space-y-2">
-                                       <label className="text-sm font-medium text-muted-foreground px-1">Manual Occupancy</label>
-                                       <Input
-                                          type="number"
-                                          min="0"
-                                          className="bg-background border-input p-4 rounded-xl font-medium text-base focus:border-emerald-500/50"
-                                          value={editData.manualOccupancy}
-                                          onChange={(e: any) => setEditData({ ...editData, manualOccupancy: e.target.value })}
-                                       />
                                     </div>}
                                  </div>
-                                 {isAdmin && <p className="text-xs text-muted-foreground">Adds people who are using the facility without an app booking or gym QR session.</p>}
                                  <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground px-1">Court Names (comma-separated)</label>
                                     <Input
@@ -325,9 +351,13 @@ export default function SportsManagement() {
                               <div className="space-y-8 flex-1 transition-transform duration-300">
                                  <div className="flex flex-wrap gap-x-12 gap-y-8">
                                     <div className="space-y-2">
-                                       <p className="text-sm font-medium text-muted-foreground">Courts Available</p>
+                                       <p className="text-sm font-medium text-muted-foreground">{isPublicSport(s) ? 'Spaces Available' : 'Courts Available'}</p>
                                        <div className="flex items-center gap-3">
-                                          <span className="text-2xl font-bold tabular-nums">{s.numberOfCourts - s.courtsInUse} <span className="text-primary text-lg font-normal">/</span> {s.numberOfCourts}</span>
+                                          <span className="text-2xl font-bold tabular-nums">
+                                             {isPublicSport(s) ? Math.max(0, s.maxCapacity - (s.numPlayers || 0)) : s.numberOfCourts - s.courtsInUse}
+                                             <span className="text-primary text-lg font-normal"> / </span>
+                                             {isPublicSport(s) ? s.maxCapacity : s.numberOfCourts}
+                                          </span>
                                        </div>
                                     </div>
                                     <div className="space-y-2">
@@ -343,7 +373,7 @@ export default function SportsManagement() {
                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                       <p className="text-sm font-medium text-muted-foreground">Manual Occupancy</p>
+                                       <p className="text-sm font-medium text-muted-foreground">Manual Players</p>
                                        <div className="flex items-center gap-3">
                                           <span className="text-2xl font-bold tabular-nums">{s.manualOccupancy || 0}</span>
                                        </div>
@@ -375,22 +405,78 @@ export default function SportsManagement() {
                                  </div>
                                  {isAdmin && (
                                     <div className="pt-6 border-t border-border">
-                                       <p className="text-sm font-medium text-muted-foreground mb-3">Manual Occupancy</p>
-                                       <div className="flex gap-3">
-                                          <Input
-                                             type="number"
-                                             min="0"
-                                             value={manualOccupancies[s.id] ?? String(s.manualOccupancy || 0)}
-                                             onChange={(event: any) => setManualOccupancies({ ...manualOccupancies, [s.id]: event.target.value })}
-                                             className="max-w-32 bg-background border-input"
-                                          />
-                                          <Button
-                                             onClick={() => handleManualOccupancyUpdate(s.id)}
-                                             disabled={updatingOccupancyFor === s.id}
-                                             className="bg-primary text-primary-foreground"
-                                          >
-                                             {updatingOccupancyFor === s.id ? 'Updating…' : 'Update'}
-                                          </Button>
+                                       <div className="flex flex-col gap-1">
+                                          <p className="text-sm font-semibold">{isPublicSport(s) ? 'Manual facility occupancy' : 'Manual court status'}</p>
+                                          <p className="text-xs text-muted-foreground">
+                                             {isPublicSport(s)
+                                                ? 'Record people using the facility without an app booking. Availability is calculated from capacity.'
+                                                : 'Mark each court available or occupied and record people using it without an app booking.'}
+                                          </p>
+                                       </div>
+                                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                          {(s.courts || []).map((court: any) => {
+                                             const update = courtUpdates[court.id] || {
+                                                manualOccupied: Boolean(court.manualOccupied),
+                                                manualOccupancy: String(court.manualOccupancy || 0),
+                                             }
+                                             const isBooked = Boolean(court.isBooked)
+                                             const isUpdating = updatingCourtId === court.id
+                                             return (
+                                                <div key={court.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                                                   <div className="flex items-center justify-between gap-3">
+                                                      <p className="font-semibold text-sm">{court.name}</p>
+                                                      {!isPublicSport(s) && (
+                                                         <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
+                                                            <input
+                                                               type="checkbox"
+                                                               checked={isBooked || update.manualOccupied}
+                                                               disabled={isBooked}
+                                                               onChange={(event) => setCourtUpdates({
+                                                                  ...courtUpdates,
+                                                                  [court.id]: { ...update, manualOccupied: event.target.checked },
+                                                               })}
+                                                               className="h-4 w-4 rounded border-input accent-primary"
+                                                            />
+                                                            {isBooked ? 'Booked' : 'Occupied'}
+                                                         </label>
+                                                      )}
+                                                   </div>
+                                                   {isPublicSport(s) && <div className="mt-3 flex items-end gap-2">
+                                                      <div className="min-w-0 flex-1">
+                                                         <label htmlFor={`occupancy-${court.id}`} className="mb-1 block text-xs text-muted-foreground">People using facility</label>
+                                                         <Input
+                                                            id={`occupancy-${court.id}`}
+                                                            type="number"
+                                                            min="0"
+                                                            inputMode="numeric"
+                                                            value={update.manualOccupancy}
+                                                            onChange={(event: any) => setCourtUpdates({
+                                                               ...courtUpdates,
+                                                               [court.id]: { ...update, manualOccupancy: event.target.value },
+                                                            })}
+                                                            className="bg-background border-input"
+                                                         />
+                                                      </div>
+                                                      <Button
+                                                         onClick={() => handleCourtStatusUpdate(court.id)}
+                                                         disabled={isUpdating}
+                                                         className="shrink-0 bg-primary text-primary-foreground"
+                                                      >
+                                                         {isUpdating ? 'Saving…' : 'Save'}
+                                                      </Button>
+                                                   </div>}
+                                                   {!isPublicSport(s) && <div className="mt-3 flex justify-end">
+                                                      <Button
+                                                         onClick={() => handleCourtStatusUpdate(court.id)}
+                                                         disabled={isUpdating}
+                                                         className="bg-primary text-primary-foreground"
+                                                      >
+                                                         {isUpdating ? 'Saving…' : 'Save status'}
+                                                      </Button>
+                                                   </div>}
+                                                </div>
+                                             )
+                                          })}
                                        </div>
                                     </div>
                                  )}
