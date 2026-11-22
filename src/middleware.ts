@@ -1,7 +1,8 @@
 ﻿// done
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyEdgeSessionToken } from '@/lib/edge-auth'
+import prisma from '@/lib/prisma'
+import { liveSessionFilter } from '@/lib/session-key'
 import { canAccessAdminPath, getDefaultRouteForRole, isPortalRole, normalizeRole, ROLES } from '@/lib/roles'
 
 const GUARD_RESTRICTED_PATHS = ['/dashboard', '/live-scores', '/feedback', '/book-court', '/past-bookings', '/rto', '/sg', '/gym-bookings']
@@ -80,6 +81,14 @@ function applySecurityHeaders(response: NextResponse, csp: string) {
 }
 
 
+async function sessionUser(token: string) {
+  const record = await prisma.loginSession.findUnique({
+    where: liveSessionFilter(token),
+    select: { user: { select: { role: true } } },
+  })
+  return record?.user
+}
+
 export async function middleware(request: NextRequest) {
   if (shouldUseHttps(request)) {
     const url = request.nextUrl.clone();
@@ -97,7 +106,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-
   if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/booking-scanner') || request.nextUrl.pathname.startsWith('/gym-scanner')) {
     const session = request.cookies.get('session')?.value;
     if (!session) {
@@ -105,8 +113,8 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      const payload = await verifyEdgeSessionToken(session);
-      if (!payload.userId || !isPortalRole(payload.role)) {
+      const payload = await sessionUser(session);
+      if (!payload || !isPortalRole(payload.role)) {
         return redirectOrReject(request, csp);
       }
 
@@ -122,8 +130,8 @@ export async function middleware(request: NextRequest) {
     const session = request.cookies.get('session')?.value
     if (session) {
       try {
-        const payload = await verifyEdgeSessionToken(session)
-        if (payload.userId && normalizeRole(payload.role) === ROLES.GUARD) {
+        const payload = await sessionUser(session)
+        if (payload && normalizeRole(payload.role) === ROLES.GUARD) {
           return redirectOrReject(request, csp, '/booking-scanner')
         }
       } catch {
@@ -136,6 +144,7 @@ export async function middleware(request: NextRequest) {
   return applySecurityHeaders(response, csp);
 }
 export const config = {
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)',],
 }
 

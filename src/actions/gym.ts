@@ -1,5 +1,6 @@
 'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import prisma, { interactiveTransactionOptions } from '@/lib/prisma'
 import { ActionResponse } from '@/interfaces'
 import { fail, ok } from '@/lib/action-response'
@@ -8,13 +9,13 @@ import { dateToDateString, dateToTimeString } from '@/lib/normalized-data'
 import { expireOverdueGymSessions } from '@/lib/gym-session'
 
 export async function handleGymScan(userId: string): Promise<ActionResponse> {
-    return fail(new Error('Gym QR check-in has been retired. Create a Gym booking instead.'))
+    return fail(new PublicError('Gym QR check-in has been retired. Create a Gym booking instead.'))
 }
 
 export async function getGymStats(userId: string): Promise<ActionResponse> {
     try {
         await ensureSelfOrAdmin(userId)
-        await expireOverdueGymSessions(prisma)
+        await expireOverdueGymSessions(prisma, new Date(), userId)
         const logs = await prisma.gymLog.findMany({
             where: { userId }, orderBy: { entryTime: 'desc' }
         })
@@ -40,7 +41,6 @@ export async function getGymStats(userId: string): Promise<ActionResponse> {
             })
     }
     catch (error: any) {
-        console.error('Get gym stats error:', error)
         return fail(error, 'Failed to get gym stats')
     }
 }
@@ -48,14 +48,13 @@ export async function getGymStats(userId: string): Promise<ActionResponse> {
 export async function getGymBookings(userId: string): Promise<ActionResponse> {
     try{
         await ensureSelfOrAdmin(userId)
-        await expireOverdueGymSessions(prisma)
+        await expireOverdueGymSessions(prisma, new Date(), userId)
         const logs = await prisma.gymLog.findMany({
             where: { userId }, orderBy: { entryTime: 'desc' }
         });
         return ok({ documents: logs });
     }
     catch(error : any){
-        console.error('Get gym bookings error: ', error);
         return fail(error, 'Failed to get gym bookings')
     }
 }

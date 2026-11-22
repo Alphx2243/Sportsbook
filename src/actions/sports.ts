@@ -1,5 +1,6 @@
 'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import prisma, { interactiveTransactionOptions } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -9,7 +10,7 @@ import { ensureRoles } from '@/lib/auth-utils'
 import { ROLES } from '@/lib/roles'
 import { equipmentList, nonNegativeInt, positiveInt, requiredString, sportTypeValue } from '@/lib/validation'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, syncCourtsForSport, withSportAvailability } from '@/lib/normalized-data'
-import { expireOverdueBookings } from '@/lib/booking-state'
+import { scheduleBookingMaintenance } from '@/lib/booking-maintenance'
 import { countCourtStudents, isPublicSport } from '@/lib/facility-rules'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 
@@ -19,16 +20,23 @@ async function withSportView(sport: any) {
     return { ...withAvailability, equipments: Equipment || [] }
 }
 
+let sportsRead: Promise<ActionResponse<{ documents: any[], total: number }>> | undefined
+
 export async function getSports(): Promise<ActionResponse<{ documents: any[], total: number }>> {
+    scheduleBookingMaintenance()
+    sportsRead ??= readSports().finally(() => { sportsRead = undefined })
+    return sportsRead
+}
+
+async function readSports(): Promise<ActionResponse<{ documents: any[], total: number }>> {
     try {
-        await expireOverdueBookings(prisma)
         const [sports, activeBookings] = await Promise.all([
           prisma.sport.findMany({
             orderBy: { name: 'asc' },
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } }
           }),
           prisma.booking.findMany({
-            where: { status: 'active' },
+            where: { status: 'active', endAt: { gt: new Date() } },
             select: { sportId: true, courtId: true, numberOfPlayers: true },
           }),
         ])
@@ -65,23 +73,21 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
         return ok({ documents, total: documents.length })
     }
     catch (error: any) {
-        console.error('Get sports error:', error);
         return fail(error, 'Failed to get sports')
     }
 }
 
 export async function getSport(id: string): Promise<ActionResponse> {
     try {
-        await expireOverdueBookings(prisma)
+        scheduleBookingMaintenance()
         const sport = await prisma.sport.findUnique({
             where: { id },
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } },
         })
-        if (!sport) return fail(new Error('Sport not found'))
+        if (!sport) return fail(new PublicError('Sport not found'))
         return ok(await withSportView(sport))
     }
     catch (error: any) {
-        console.error('Get sport error:', error);
         return fail(error, 'Failed to get sport')
     }
 }
@@ -127,7 +133,6 @@ export async function getSportAnalytics(sportName: string): Promise<ActionRespon
         return ok({ weeklyAttendance, peakHours });
     }
     catch (error: any) {
-        console.error('Get sport analytics error:', error);
         return fail(error, 'Failed to get analytics');
     }
 }
@@ -166,7 +171,6 @@ export async function createSport(data: any): Promise<ActionResponse> {
         return ok(sport)
     }
     catch (error: any) {
-        console.error('Create sport error:', error)
         return fail(error, 'Failed to create sport')
     }
 }

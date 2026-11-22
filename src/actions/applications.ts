@@ -1,5 +1,6 @@
 'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { ActionResponse } from '@/interfaces'
@@ -12,7 +13,7 @@ export async function createApplication(data: any): Promise<ActionResponse> {
     try {
         const user = await requireUser()
         const email = requiredEmail(data.email)
-        if (user.email !== email && user.role !== 'Admin') throw new Error('Unauthorized.')
+        if (user.email !== email && user.role !== 'Admin') throw new PublicError('Unauthorized.')
 
         const sportName = requiredString(data.sportname, 'Sport name', 100)
         const sport = await resolveSportByName(prisma, sportName)
@@ -33,7 +34,6 @@ export async function createApplication(data: any): Promise<ActionResponse> {
         return ok(withApplicationDisplay(application))
     }
     catch (error: any) {
-        console.error('Create application error:', error);
         return fail(error, 'Failed to create application')
     }
 }
@@ -48,7 +48,6 @@ export async function getApplications(): Promise<ActionResponse<any[]>> {
         })
         return ok(applications.map(withApplicationDisplay))
     } catch (error: any) {
-        console.error('Get applications error:', error)
         return fail(error, 'Failed to get applications')
     }
 }
@@ -60,7 +59,6 @@ export async function deleteApplication(id: string): Promise<ActionResponse> {
         revalidatePath('/')
         return ok(null)
     } catch (error: any) {
-        console.error('Delete application error:', error)
         return fail(error, 'Failed to delete application')
     }
 }
@@ -68,8 +66,8 @@ export async function deleteApplication(id: string): Promise<ActionResponse> {
 async function assertApplicationAccess(id: string) {
     const user = await requireUser()
     const application = await prisma.guideApplication.findUnique({ where: { id } })
-    if (!application) throw new Error('Application not found.')
-    if (application.email !== user.email && user.role !== 'Admin') throw new Error('Unauthorized.')
+    if (!application) throw new PublicError('Application not found.')
+    if (application.email !== user.email && user.role !== 'Admin') throw new PublicError('Unauthorized.')
     return application
 }
 

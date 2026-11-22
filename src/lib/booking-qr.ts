@@ -1,3 +1,4 @@
+import { PublicError } from './public-error.js'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { requireServerEnv } from './env'
 
@@ -76,13 +77,13 @@ export function parseBookingQrPayload(raw: string): BookingQrPayload {
   try {
     rawPayload = JSON.parse(normalizedRaw)
   } catch {
-    throw new Error('Invalid QR code format.')
+    throw new PublicError('Invalid QR code format.')
   }
 
   const payload = normalizeBookingQrPayload(rawPayload)
 
   if (!payload.bookingId || !payload.userId || !payload.sportId || !payload.qrHash) {
-    throw new Error('This QR code is missing its secure booking signature.')
+    throw new PublicError('This QR code is missing its secure booking signature.')
   }
 
   return payload
@@ -92,7 +93,7 @@ export function verifyBookingQrPayload(raw: string, booking: BookingQrFields & {
   const payload = parseBookingQrPayload(raw)
 
   if (payload.bookingId !== booking.bookingId || payload.userId !== booking.userId) {
-    throw new Error('This QR code does not match the booking record.')
+    throw new PublicError('This QR code does not match the booking record.')
   }
 
   const expectedHashes = [createBookingQrHash(booking), createLegacyBookingQrHash(booking)]
@@ -101,7 +102,7 @@ export function verifyBookingQrPayload(raw: string, booking: BookingQrFields & {
     || expectedHashes.some((hash) => safeEqual(booking.qrHash || '', hash))
 
   if (!expectedHashes.some((hash) => safeEqual(payload.qrHash, hash)) || !storedHashMatches) {
-    throw new Error('This QR code could not be verified.')
+    throw new PublicError('This QR code could not be verified.')
   }
 
   return payload

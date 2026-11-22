@@ -1,5 +1,6 @@
 'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
 import { fail, ok } from '@/lib/action-response'
@@ -14,12 +15,12 @@ export async function uploadGlobalSchedule(formData: FormData): Promise<ActionRe
     await ensureAdmin()
     const file = formData.get('schedule')
     if (!(file instanceof File) || file.size === 0 || file.size > MAX_SCHEDULE_SIZE) {
-      throw new Error('Upload a PDF no larger than 25 MB.')
+      throw new PublicError('Upload a PDF no larger than 25 MB.')
     }
 
     const pdfData = new Uint8Array(await file.arrayBuffer())
     if (new TextDecoder().decode(pdfData.slice(0, 4)) !== '%PDF') {
-      throw new Error('The uploaded file is not a valid PDF.')
+      throw new PublicError('The uploaded file is not a valid PDF.')
     }
 
     await prisma.globalSchedule.upsert({

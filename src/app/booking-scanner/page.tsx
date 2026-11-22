@@ -25,7 +25,7 @@ export default function BookingScannerPage() {
 
     const loadBookings = useCallback(async () => {
         setBookingsLoading(true)
-        const response = await getBookings()
+        const response = await getBookings({ scanner: true })
         if (response.success) {
             setBookings(response.data.documents.filter((booking: any) =>
                 ['pending', 'active', 'returned', 'expired'].includes(booking.status)

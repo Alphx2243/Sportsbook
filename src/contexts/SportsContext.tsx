@@ -1,6 +1,6 @@
 // done
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from "react";
 import { getSports } from "@/actions/sports";
 import { usePathname } from "next/navigation";
 
@@ -9,18 +9,24 @@ const SportsContext = createContext<any>(null);
 export const SportsProvider = ({ children }: { children: ReactNode }) => {
     const [sports, setSports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const latestRequest = useRef(0);
     const pathname = usePathname();
 
     const fetchSports = useCallback(async () => {
+        const request = ++latestRequest.current;
         try {
-            const sportsData = await getSports();
-            const docs = sportsData.success ? sportsData.data.documents : [];
-            setSports(docs);
-            setLoading(false);
-        }
-        catch (error) {
-            console.error('Failed to fetch sports:', error);
-            setLoading(false);
+            const result = await getSports();
+            if (request !== latestRequest.current) return;
+            setLoadFailed(!result.success);
+            setSports(result.success ? result.data.documents : []);
+        } catch {
+            if (request === latestRequest.current) {
+                setLoadFailed(true);
+                setSports([]);
+            }
+        } finally {
+            if (request === latestRequest.current) setLoading(false);
         }
     }, [])
 
@@ -31,9 +37,10 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     const contextValue = useMemo(() => ({
         sports,
         loading,
+        loadFailed,
         setSports,
         refreshSports: fetchSports
-    }), [sports, loading, fetchSports]);
+    }), [sports, loading, loadFailed, fetchSports]);
 
     return (
         <SportsContext.Provider value={contextValue}>

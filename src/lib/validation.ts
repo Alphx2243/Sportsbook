@@ -1,4 +1,5 @@
 ﻿// done
+import { PublicError } from './public-error.js'
 import { normalizeRole } from '@/lib/roles'
 import { isBookingPlayerCount, MAX_BOOKING_PLAYERS } from '@/lib/facility-rules'
 
@@ -7,10 +8,10 @@ const MATCH_STATUSES = new Set(['live', 'upcoming', 'finished'])
 const SPORT_TYPES = new Set(['public', 'private'])
 
 export function requiredString(value: unknown, field: string, maxLength = 255): string {
-  if (typeof value !== 'string') throw new Error(`${field} is required.`)
+  if (typeof value !== 'string') throw new PublicError(`${field} is required.`)
   const trimmed = value.trim()
-  if (!trimmed) throw new Error(`${field} is required.`)
-  if (trimmed.length > maxLength) throw new Error(`${field} is too long.`)
+  if (!trimmed) throw new PublicError(`${field} is required.`)
+  if (trimmed.length > maxLength) throw new PublicError(`${field} is too long.`)
   return trimmed
 }
 
@@ -21,31 +22,31 @@ export function optionalString(value: unknown, field: string, maxLength = 255): 
 
 export function requiredEmail(value: unknown): string {
   const email = requiredString(value, 'Email', 320).toLowerCase()
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email is invalid.')
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new PublicError('Email is invalid.')
   return email
 }
 
 export function positiveInt(value: unknown, field: string): number {
   const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${field} must be a positive integer.`)
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new PublicError(`${field} must be a positive integer.`)
   return parsed
 }
 
 export function bookingPlayerCount(value: unknown): number {
   const players = positiveInt(value, 'Number of players')
-  if (!isBookingPlayerCount(players)) throw new Error(`A booking can include at most ${MAX_BOOKING_PLAYERS} players.`)
+  if (!isBookingPlayerCount(players)) throw new PublicError(`A booking can include at most ${MAX_BOOKING_PLAYERS} players.`)
   return players
 }
 
 export function nonNegativeInt(value: unknown, field: string, fallback?: number): number {
   if ((value === undefined || value === null || value === '') && fallback !== undefined) return fallback
   const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${field} must be a non-negative integer.`)
+  if (!Number.isInteger(parsed) || parsed < 0) throw new PublicError(`${field} must be a non-negative integer.`)
   return parsed
 }
 
 export function bookingStatus(value: unknown): string {
-  if (typeof value !== 'string' || !BOOKING_STATUSES.has(value)) throw new Error('Invalid booking status.')
+  if (typeof value !== 'string' || !BOOKING_STATUSES.has(value)) throw new PublicError('Invalid booking status.')
   return value
 }
 
@@ -58,7 +59,7 @@ export function matchStatus(value: unknown): string {
 }
 
 export function sportTypeValue(value: unknown): 'public' | 'private' {
-  if (typeof value !== 'string' || !SPORT_TYPES.has(value)) throw new Error('Sport type must be public or private.')
+  if (typeof value !== 'string' || !SPORT_TYPES.has(value)) throw new PublicError('Sport type must be public or private.')
   return value as 'public' | 'private'
 }
 

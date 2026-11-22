@@ -1,6 +1,7 @@
 // done
 'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { ActionResponse } from '@/interfaces'
@@ -13,7 +14,7 @@ export async function createInvite(data: any): Promise<ActionResponse> {
     try {
         const user = await requireUser()
         const email = requiredEmail(data.email)
-        if (user.email !== email && user.role !== 'Admin') throw new Error('Unauthorized.')
+        if (user.email !== email && user.role !== 'Admin') throw new PublicError('Unauthorized.')
 
         const sportName = requiredString(data.sport, 'Sport')
         const sport = await resolveSportByName(prisma, sportName)
@@ -33,7 +34,6 @@ export async function createInvite(data: any): Promise<ActionResponse> {
         return ok(withInviteDisplay(invite))
     }
     catch (error: any) {
-        console.error('Create invite error:', error)
         return fail(error, 'Failed to create invite')
     }
 }
@@ -45,7 +45,6 @@ export async function getInvites(): Promise<ActionResponse<any[]>> {
         return ok(invites.map(withInviteDisplay))
     }
     catch (error: any) {
-        console.error('Get invites error:', error)
         return fail(error, 'Failed to get invites')
     }
 }
@@ -58,7 +57,6 @@ export async function editInvite(id: string): Promise<ActionResponse> {
         return ok(withInviteDisplay(invite))
     }
     catch (error: any) {
-        console.error('Edit invite error:', error)
         return fail(error, 'Failed to edit invite')
     }
 }
@@ -71,7 +69,6 @@ export async function deleteInvite(id: string): Promise<ActionResponse> {
         return ok(null)
     }
     catch (error: any) {
-        console.error('Delete invite error:', error);
         return fail(error, 'Failed to delete invite')
     }
 }
@@ -79,8 +76,8 @@ export async function deleteInvite(id: string): Promise<ActionResponse> {
 async function assertInviteAccess(id: string) {
     const user = await requireUser()
     const invite = await prisma.invite.findUnique({ where: { id } })
-    if (!invite) throw new Error('Invite not found.')
-    if (invite.email !== user.email && user.role !== 'Admin') throw new Error('Unauthorized.')
+    if (!invite) throw new PublicError('Invite not found.')
+    if (invite.email !== user.email && user.role !== 'Admin') throw new PublicError('Unauthorized.')
     return invite
 }
 

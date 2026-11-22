@@ -27,7 +27,6 @@ export async function getMatches(filters: { status?: string; sportName?: string 
         return ok({ documents, total: documents.length })
     }
     catch (error: any) {
-        console.error('Get matches error:', error)
         return fail(error, 'Failed to get matches')
     }
 }
@@ -51,7 +50,6 @@ export async function createMatch(data: any): Promise<ActionResponse> {
         return ok(withMatchDisplay({ ...match, sport }))
     }
     catch (error: any) {
-        console.error('Create match error:', error)
         return fail(error, 'Failed to create match')
     }
 }
@@ -72,7 +70,6 @@ export async function updateMatch(id: string, data: any): Promise<ActionResponse
         return ok(match)
     }
     catch (error: any) {
-        console.error('Update match error:', error)
         return fail(error, 'Failed to update match')
     }
 }
@@ -86,7 +83,6 @@ export async function deleteMatch(id: string): Promise<ActionResponse> {
         return ok(null)
     }
     catch (error: any) {
-        console.error('Delete match error:', error)
         return fail(error, 'Failed to delete match')
     }
 }

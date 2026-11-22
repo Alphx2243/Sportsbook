@@ -1,6 +1,7 @@
 ﻿// done
+import { PublicError } from './public-error.js'
 import prisma from '@/lib/prisma'
-import { verifySessionToken } from '@/lib/auth-config'
+import { liveSessionFilter } from './session-key'
 import { cookies } from 'next/headers'
 import { withUserDisplay } from '@/lib/normalized-data'
 import { AppRole, normalizeRole, ROLES } from '@/lib/roles'
@@ -19,13 +20,8 @@ export const publicUserSelect = {
 } as const
 
 export const bookingUserSelect = {
-  id: true,
-  email: true,
   name: true,
-  phone: true,
   rollNumber: true,
-  qrCodePath: true,
-  role: true,
 } as const
 
 export async function getCurrentSessionUser() {
@@ -33,19 +29,16 @@ export async function getCurrentSessionUser() {
   const session = cookieStore.get('session')
   if (!session) return null
 
-  const payload = await verifySessionToken(session.value)
-  if (!payload.userId) return null
-
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: publicUserSelect,
+  const record = await prisma.loginSession.findUnique({
+    where: liveSessionFilter(session.value),
+    select: { user: { select: publicUserSelect } },
   })
-  return user ? withUserDisplay(user) : null
+  return record ? withUserDisplay(record.user) : null
 }
 
 export async function requireUser() {
   const user = await getCurrentSessionUser()
-  if (!user) throw new Error('Unauthorized.')
+  if (!user) throw new PublicError('Unauthorized.')
   return user
 }
 
@@ -55,13 +48,13 @@ export async function ensureAdmin() {
 
 export async function ensureRoles(allowedRoles: AppRole[]) {
   const user = await requireUser()
-  if (!allowedRoles.includes(normalizeRole(user.role))) throw new Error('Unauthorized: You do not have access to this area.')
+  if (!allowedRoles.includes(normalizeRole(user.role))) throw new PublicError('Unauthorized: You do not have access to this area.')
   return user
 }
 
 export async function ensureSelfOrAdmin(userId: string) {
   const user = await requireUser()
-  if (user.id !== userId && normalizeRole(user.role) !== ROLES.ADMIN) throw new Error('Unauthorized.')
+  if (user.id !== userId && normalizeRole(user.role) !== ROLES.ADMIN) throw new PublicError('Unauthorized.')
   return user
 }
 

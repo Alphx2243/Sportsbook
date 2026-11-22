@@ -172,20 +172,12 @@ export default function Home() {
   const router = useRouter()
   const { user } = useAuth()
   const [index, setIndex] = useState(0)
-  const { sports, loading } = useSport()
+  const { sports, loading, loadFailed } = useSport()
 
   const prev = () => setIndex(i => sports.length ? (i > 0 ? i - 1 : sports.length - 1) : 0)
   const next = () => setIndex(i => sports.length ? (i < sports.length - 1 ? i + 1 : 0) : 0)
 
-  const selected = sports[index]
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  const selected = sports[index] ?? sports[0]
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden pt-16">
@@ -225,7 +217,7 @@ export default function Home() {
             </div>
           </motion.div>
         </div>
-        {selected ? (
+        {selected && !loadFailed ? (
           <div className="flex-1 w-full max-w-xl relative">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
@@ -337,8 +329,10 @@ export default function Home() {
           <div className="flex-1 w-full max-w-xl">
             <Card className="glass-card border-white/10 dark:border-white/10 border-black/5">
               <CardContent className="p-8 text-center">
-                <h2 className="text-2xl font-bold text-foreground mb-2">No facilities available</h2>
-                <p className="text-muted-foreground">Please check back later.</p>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  {loading ? 'Loading facilities…' : loadFailed ? 'Couldn’t load facilities' : 'No facilities available'}
+                </h2>
+                {!loading && !loadFailed && <p className="text-muted-foreground">Please check back later.</p>}
               </CardContent>
             </Card>
           </div>

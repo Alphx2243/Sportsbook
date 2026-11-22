@@ -1,8 +1,9 @@
-const MAX_GYM_SESSION_MS = 2 * 60 * 60 * 1000
+export const MAX_GYM_SESSION_MS = 2 * 60 * 60 * 1000
 
-export async function expireOverdueGymSessions(tx: any, now = new Date()) {
+export async function expireOverdueGymSessions(tx: any, now = new Date(), userId?: string) {
   const overdueSessions = await tx.gymLog.findMany({
     where: {
+      ...(userId ? { userId } : {}),
       status: 'active',
       exitTime: null,
       entryTime: { lte: new Date(now.getTime() - MAX_GYM_SESSION_MS) },

@@ -50,10 +50,21 @@ model User {
   role             UserRole  @default(user)
   bookings         Booking[]
   gymLogs          GymLog[]
+  sessions         LoginSession[]
   sportExperiences UserSportExperience[]
 
   @@index([role])
   @@index([rollNumber])
+}
+
+model LoginSession {
+  tokenHash String @id
+  userId    String
+  expiresAt DateTime
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 model Sport {

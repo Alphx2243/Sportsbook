@@ -95,7 +95,7 @@ export default function BookingManagement() {
                            <div className="flex flex-col lg:flex-row gap-5 lg:gap-8">
                               <div className="flex-1 space-y-5 sm:space-y-6">
                                  <div className="flex items-start justify-between gap-3">
-                                    <div className={`px-3 py-1 rounded-md text-xs font-bold uppercase border shadow-sm ${b.status === 'returned' || b.status === 'expired' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                    <div className={`px-3 py-1 rounded-md text-xs font-bold uppercase border shadow-sm ${b.status === 'returned' || (b.status === 'expired' && b.scanned) ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                                        b.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                           'bg-primary text-primary-foreground border-border'
                                        }`}>
@@ -168,7 +168,7 @@ export default function BookingManagement() {
                                           {processingId === b.id ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Cancel Booking'}
                                        </Button>
                                     </div>
-                                 ) : b.status === 'returned' || b.status === 'expired' ? (
+                                 ) : b.status === 'returned' || (b.status === 'expired' && b.scanned) ? (
                                     <div className="w-full space-y-3">
                                        <div className="p-4 sm:p-6 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center sm:flex-col text-left sm:text-center gap-3">
                                           <div className="text-amber-500">

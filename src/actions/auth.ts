@@ -1,7 +1,9 @@
 // done
 'use server'
+import { PublicError } from '@/lib/public-error.js'
 import prisma, { interactiveTransactionOptions } from '@/lib/prisma'
 import { cookies } from 'next/headers'
+import { sessionHash } from '@/lib/session-key'
 import { ActionResponse } from '@/interfaces'
 import { fail, ok } from '@/lib/action-response'
 import { ensureAdmin, getCurrentSessionUser, publicUserSelect, requireUser } from '@/lib/auth-utils'
@@ -14,7 +16,7 @@ export async function updateUser(userId: string, data: {
     name?: string; phone?: string; rollNumber?: string; sportsExperience?: string[]; }): Promise<ActionResponse> {
     try {
         const actor = await getCurrentSessionUser()
-        if (!actor || (actor.id !== userId && actor.role !== 'Admin')) throw new Error('Unauthorized.')
+        if (!actor || (actor.id !== userId && actor.role !== 'Admin')) throw new PublicError('Unauthorized.')
         const canEditIdentity = normalizeRole(actor.role) === ROLES.ADMIN
 
         const user = await prisma.$transaction(async (tx: any) => {
@@ -33,13 +35,20 @@ export async function updateUser(userId: string, data: {
         return ok(user);
     }
     catch (error: any) {
-        console.error("Update user error:", error);
         return fail(error, 'Failed to update user');
     }
 }
 
 export async function logout(): Promise<ActionResponse> {
     const cookieStore = await cookies()
+    const token = cookieStore.get('session')?.value
+    if (token) {
+        try {
+            await prisma.loginSession.deleteMany({ where: { tokenHash: sessionHash(token) } })
+        } catch {
+            return { success: false, error: 'Could not sign out. Please try again.' }
+        }
+    }
     cookieStore.delete('session')
     return ok(null)
 }
@@ -47,7 +56,7 @@ export async function logout(): Promise<ActionResponse> {
 export async function getCurrentUser(): Promise<ActionResponse> {
     try {
         const user = await getCurrentSessionUser()
-        if (!user) return fail(new Error('No session'))
+        if (!user) return fail(new PublicError('No session'))
         return ok(user)
     }
     catch (error: any) {
@@ -63,7 +72,6 @@ export async function getUsers(): Promise<ActionResponse<{ documents: any[], tot
         return ok({ documents, total: documents.length });
     }
     catch (error: any) {
-        console.error("Get users error:", error);
         return fail(error, 'Failed to get users');
     }
 }
@@ -102,7 +110,6 @@ export async function searchPublicPlayers(filters: {
         ])
         return ok({ documents: users.map(withUserDisplay), total })
     } catch (error: any) {
-        console.error('Search public players error:', error)
         return fail(error, 'Failed to search players')
     }
 }

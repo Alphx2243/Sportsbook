@@ -7,7 +7,6 @@ The ecosystem is architected as three independent specialized platforms to ensur
 - **User Platform**: A Next.js client-side interface for students and athletes to manage bookings, view live scores, and monitor occupancy.
 - **Admin Portal**: A dedicated management dashboard for administrative tasks, including booking approvals and equipment inventory oversight.
 - **Socket Server**: A centralized, standalone Node.js WebSocket hub that manages real-time event broadcasting across the entire ecosystem.
-- **Caching & Rate Limiting**: A Redis-backed (Upstash) distributed layer that ensures high availability and precise traffic control across multiple instances.
 ## Technical Features
 ### Real-time Synchronization
 - **Live Match Tracking**: Instant score updates for campus sporting events via WebSocket events.
@@ -19,7 +18,7 @@ The ecosystem is architected as three independent specialized platforms to ensur
 - **Equipment Lifecycle**: Integrated tracking for the distribution and return of sports gear.
 
 ### Security and Infrastructure
-- **Redis-Backed Rate Limiting**: Custom Next.js Edge Middleware utilizes Redis for distributed sliding-window rate limiting. It restricts traffic to 60 requests per minute per IP and a global cap of 700 requests per minute.
+- The college IT team manages rate limiting at the deployment layer.
 - **JWT Authentication**: Secure user sessions managed via JSON Web Tokens (jose) for stateless authentication.
 
 ## Tech Stack
@@ -28,7 +27,6 @@ The ecosystem is architected as three independent specialized platforms to ensur
 - **Framework**: Next.js 15 (App Router), React 19
 - **State & Animation**: Framer Motion, React Context API
 - **Database**: PostgreSQL with Prisma ORM
-- **Cache**: Redis (Upstash)
 - **Real-time**: Socket.io (Standalone Node.js Server)
 - **Visualization**: Recharts for occupancy analytics
 - **Styling**: Tailwind CSS 4.0
@@ -48,9 +46,6 @@ Create a .env file in the root directory with the following variables:
 DATABASE_URL=""
 JWT_SECRET=""
 
-# Redis (Upstash)
-UPSTASH_REDIS_REST_URL=""
-UPSTASH_REDIS_REST_TOKEN=""
 
 # Socket Configuration
 NEXT_PUBLIC_SOCKET_URL=""

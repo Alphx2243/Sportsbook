@@ -17,8 +17,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import ExtendTimerModal from '@/components/ui/ExtendTimerModal';
-import { deleteBooking, endGymBooking, endPublicBooking, expireBooking, getBookings, requestReturn } from '@/actions/bookings';
-import { getGymBookings } from '@/actions/gym';
+import { deleteBooking, endGymBooking, endPublicBooking, expireBooking, getDashboardBooking, requestReturn } from '@/actions/bookings';
 // import { useSocket } from '@/hooks/useSocket';
 
 interface Booking {
@@ -54,89 +53,46 @@ export default function Dashboard() {
     const [showExtensionModal, setShowExtensionModal] = useState(false);
     const [gymElapsed, setGymElapsed] = useState('');
     const [endingGymSession, setEndingGymSession] = useState(false);
-    const gymSessionRef = useRef<GymSession | null>(null);
-    const gymSessionLoadedRef = useRef(false);
-    const gymReloadTimerRef = useRef<number | null>(null);
-
-    // useSocket('dashboard', activeBooking?.sportName, () => {
-    //     fetchActiveBooking();
-    // }, 'availability_changed');
-
-    const syncGymSession = useCallback((response: any) => {
-        if (!response.success) return;
-        const nextGymSession = response.data.documents.find((log: any) => log.status === 'active' && !log.exitTime) || null;
-        if (gymSessionLoadedRef.current && !gymSessionRef.current && nextGymSession && gymReloadTimerRef.current === null) {
-            const delay = Math.max(0, 4_000 - (Date.now() - new Date(nextGymSession.entryTime).getTime()));
-            gymReloadTimerRef.current = window.setTimeout(() => window.location.reload(), delay);
-        }
-        gymSessionRef.current = nextGymSession;
-        gymSessionLoadedRef.current = true;
-        setActiveGymSession(nextGymSession);
-    }, []);
-
     const fetchActiveBooking = useCallback(async () => {
         if (!user?.id) return;
         try {
-            
-            const [res, gymRes] = await Promise.all([
-                getBookings({ userId: user.id }),
-                getGymBookings(user.id),
-            ]);
-            if (res.success) {
-                const booking = res.data.documents.find((b: any) => 
-                    b.status === 'active' || b.status === 'pending' || b.status === 'returned' || (b.status === 'expired' && b.sportType !== 'public')
-                );
-                if (booking) {
-                    setActiveBooking(booking);
-                    if (booking.status === 'pending' && booking.qrDetail) {
-                        const dataUrl = await QRCode.toDataURL(booking.qrDetail, {
-                            width: 360, margin: 2,
-                        });
-
-                        setQrUrl(dataUrl);
-                    } else {
-                        setQrUrl('');
-                    }
-                } else {
-                    setActiveBooking(null);
-                    setQrUrl('');
-                }
-            } else {
-                setActiveBooking(null);
-                setQrUrl('');
-            }
-            syncGymSession(gymRes);
-        } catch (err) {
-            console.error('Error fetching active booking:', err);
+            const res = await getDashboardBooking();
+            if (!res.success) return;
+            const { booking, gym } = res.data;
+            setActiveBooking(booking);
+            setActiveGymSession(gym);
+            setQrUrl(booking?.status === 'pending' && booking.qrDetail
+                ? await QRCode.toDataURL(booking.qrDetail, { width: 360, margin: 2 })
+                : '');
+        } catch (error) {
+            console.error('Could not refresh dashboard', error);
         } finally {
             setLoading(false);
         }
-    }, [user?.id, syncGymSession]);
+    }, [user?.id]);
+
+    const refreshing = useRef(false);
+    const refreshVisibleDashboard = useCallback(async () => {
+        if (document.visibilityState !== 'visible' || refreshing.current) return;
+        refreshing.current = true;
+        try { await fetchActiveBooking(); } finally { refreshing.current = false; }
+    }, [fetchActiveBooking]);
 
     useEffect(() => {
-        if (user) {
-            fetchActiveBooking();
-            const refreshTimer = window.setInterval(() => {
-                if (document.visibilityState === 'visible') fetchActiveBooking();
-            }, 10000);
-            const gymRefreshTimer = window.setInterval(async () => {
-                if (document.visibilityState === 'visible') syncGymSession(await getGymBookings(user.id));
-            }, 1000);
-            const refreshOnFocus = () => fetchActiveBooking();
-            window.addEventListener('focus', refreshOnFocus);
-            return () => {
-                window.clearInterval(refreshTimer);
-                window.clearInterval(gymRefreshTimer);
-                window.removeEventListener('focus', refreshOnFocus);
-            };
-        }
-    }, [user, fetchActiveBooking, syncGymSession]);
-
-    useEffect(() => {
+        void refreshVisibleDashboard();
+        window.addEventListener('focus', refreshVisibleDashboard);
+        document.addEventListener('visibilitychange', refreshVisibleDashboard);
         return () => {
-            if (gymReloadTimerRef.current !== null) window.clearTimeout(gymReloadTimerRef.current);
+            window.removeEventListener('focus', refreshVisibleDashboard);
+            document.removeEventListener('visibilitychange', refreshVisibleDashboard);
         };
-    }, []);
+    }, [refreshVisibleDashboard]);
+
+    useEffect(() => {
+        if (activeBooking?.status !== 'pending') return;
+        const timer = window.setInterval(refreshVisibleDashboard, 10_000);
+        return () => window.clearInterval(timer);
+    }, [activeBooking?.status, refreshVisibleDashboard]);
 
     useEffect(() => {
         if (!activeGymSession) {
@@ -269,10 +225,12 @@ export default function Dashboard() {
                         </h1>
                     </motion.div>
                     <motion.div
+                        className="flex gap-3"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
                     >
+                        <Button variant="outline" onClick={refreshVisibleDashboard}>Refresh</Button>
                         {!activeBooking && !activeGymSession && (
                             <Button variant="" onClick={() => router.push('/book-court')}>
                                 New Booking

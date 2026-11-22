@@ -132,16 +132,6 @@ export default function AgniCodersBooking() {
         status: "pending",
         CourtNo: isPublicFacility ? "0" : selectedCourt,
         enddate: Enddate,
-        qrdetail: JSON.stringify({
-          name: user.name,
-          email: user.email,
-          rollNumber: user.rollNumber,
-          sportName: selectedSport.name,
-          playerCount,
-          equipmentCounts: Object.fromEntries(
-            Object.entries(equipmentCounts).map(([n, c]) => [n, c - (initialInUse[n] || 0)])
-          ),
-        }),
       };
       const result = await secureBooking(payload);
 
@@ -256,8 +246,8 @@ export default function AgniCodersBooking() {
                 onChange={(e) => setDuration(parseInt(e.target.value))}
                 className="w-full bg-accent/5 border border-white/10 dark:border-white/10 border-black/10 text-foreground rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
               >
-                <option value={1} className="bg-background text-foreground">1 Minute</option>
-                <option value={2} className="bg-background text-foreground">2 Minutes</option>
+                {/* <option value={1} className="bg-background text-foreground">1 Minute</option> */}
+                {/* <option value={2} className="bg-background text-foreground">2 Minutes</option> */}
                 <option value={30} className="bg-background text-foreground">30 Minutes</option>
                 <option value={60} className="bg-background text-foreground">1 Hour</option>
                 <option value={90} className="bg-background text-foreground">1.5 Hours</option>

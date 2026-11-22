@@ -51,7 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = async (): Promise<void> => {
-    await logoutAction();
+    const result = await logoutAction();
+    if (!result.success) throw new Error(result.error);
     setUser(null);
   };
 

@@ -1,9 +1,10 @@
+import { PublicError } from './public-error.js'
 const SUPPORTED_ROLL_NUMBER = /^[A-Z0-9][A-Z0-9._/-]{3,24}$/i
 
 export function validateRollNumber(value: string) {
   const normalized = value.trim().toUpperCase()
   if (!SUPPORTED_ROLL_NUMBER.test(normalized)) {
-    throw new Error('Roll number format is not supported.')
+    throw new PublicError('Roll number format is not supported.')
   }
   return normalized
 }

@@ -1,3 +1,4 @@
+import { PublicError } from './public-error.js'
 import { randomUUID } from 'crypto'
 import { countCourtStudents, isPublicSport } from '@/lib/facility-rules'
 
@@ -6,7 +7,7 @@ const IST_OFFSET_MINUTES = 330
 
 export async function resolveSportByName(tx: any, sportName: string) {
   const sport = await tx.sport.findUnique({ where: { name: sportName } })
-  if (!sport) throw new Error('Sport not found.')
+  if (!sport) throw new PublicError('Sport not found.')
   return sport
 }
 
@@ -140,7 +141,7 @@ export async function syncCourtsForSport(tx: any, sportId: string, numberOfCourt
     (_, index) => suppliedNames[index]?.trim() || `Court ${index + 1}`,
   )
   if (new Set(courtNames.map((name) => name.toLowerCase())).size !== courtNames.length) {
-    throw new Error('Court names must be unique.')
+    throw new PublicError('Court names must be unique.')
   }
 
   const existingCourts = await tx.court.findMany({
@@ -173,7 +174,7 @@ export async function syncCourtsForSport(tx: any, sportId: string, numberOfCourt
 
 export async function withSportAvailability(tx: any, sport: any) {
   const activeBookings = await tx.booking.findMany({
-    where: { sportId: sport.id, status: 'active' },
+    where: { sportId: sport.id, status: 'active', endAt: { gt: new Date() } },
     select: { courtId: true, numberOfPlayers: true },
   })
   const bookedCourtIds = new Set(activeBookings.map((booking: any) => booking.courtId).filter(Boolean))

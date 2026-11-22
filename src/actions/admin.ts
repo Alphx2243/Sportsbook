@@ -1,5 +1,6 @@
 ﻿'use server'
 
+import { PublicError } from '@/lib/public-error.js'
 import prisma, { interactiveTransactionOptions } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import type { ActionResponse } from '@/interfaces'
@@ -30,7 +31,6 @@ export async function getAdminStats(): Promise<ActionResponse> {
                 activeBookings
             })
     } catch (error: any) {
-        console.error('Get admin stats error:', error)
         return fail(error, 'Failed to get admin stats')
     }
 }
@@ -49,7 +49,7 @@ export async function getAllUsers(): Promise<ActionResponse> {
 }
 
 export async function createUser(data: any): Promise<ActionResponse> {
-    return fail(new Error('Users must sign in with Google first.'))
+    return fail(new PublicError('Users must sign in with Google first.'))
 }
 
 export async function updateUserRole(userId: string, role: string): Promise<ActionResponse> {
@@ -83,7 +83,6 @@ export async function deleteUser(userId: string): Promise<ActionResponse> {
         revalidatePath('/admin/users')
         return ok(null)
     } catch (error: any) {
-        console.error('Delete user error:', error)
         return fail(error, 'Failed to delete user')
     }
 }
@@ -94,7 +93,7 @@ export async function updateSportInventory(sportId: string, data: any): Promise<
         const parsedEquipment = data.totalEquipments ? equipmentList(data.totalEquipments) : undefined
         await prisma.$transaction(async (tx: any) => {
             const existingSport = await tx.sport.findUnique({ where: { id: sportId } })
-            if (!existingSport) throw new Error('Sport not found.')
+            if (!existingSport) throw new PublicError('Sport not found.')
             const sportType = data.sportType !== undefined ? sportTypeValue(data.sportType) : existingSport.sportType
             const numberOfCourts = sportType === 'public'
                 ? 1
@@ -165,14 +164,14 @@ export async function updateSportInventory(sportId: string, data: any): Promise<
 export async function updateCourtManualStatus(courtId: string, manualOccupied: unknown, manualOccupancy: unknown): Promise<ActionResponse> {
     try {
         await ensureAdmin()
-        if (typeof manualOccupied !== 'boolean') throw new Error('Court availability must be selected.')
+        if (typeof manualOccupied !== 'boolean') throw new PublicError('Court availability must be selected.')
 
         await prisma.$transaction(async (tx: any) => {
             const existingCourt = await tx.court.findUnique({
                 where: { id: courtId },
                 select: { sportId: true, sport: { select: { maxCapacity: true } } },
             })
-            if (!existingCourt) throw new Error('Court not found.')
+            if (!existingCourt) throw new PublicError('Court not found.')
             const court = await tx.court.update({
                 where: { id: courtId },
                 data: {

@@ -56,7 +56,12 @@ export default function Navbar() {
   const toggleMobileDropdown = () => setMobileDropdownOpen(o => !o)
 
   const handleLogout = async () => {
-    await logout()
+    try {
+      await logout()
+    } catch {
+      window.alert('Could not sign out. Please try again.')
+      return
+    }
     setLogoutModalOpen(false)
     window.location.href = '/'
   }
