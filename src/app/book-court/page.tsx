@@ -67,7 +67,7 @@ export default function AgniCodersBooking() {
         ? cData.map((item: any) => item.split(":")[0])
         : Array.from({ length: sport.numberOfCourts || 0 }, (_, i) => `Court${i + 1}`);
     setCourts(courtArr);
-    setSelectedCourt(courtArr[0] || "");
+    setSelectedCourt(courtArr.find((name: string) => !sport.courts?.some((court) => court.name === name && court.manualOccupied)) || "");
   };
 
   const handleSportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -296,8 +296,8 @@ export default function AgniCodersBooking() {
               <h3 className="text-lg font-semibold text-foreground mb-4">Select Court</h3>
               <div className="flex flex-wrap gap-4">
                 {Array.from({ length: sportsData[selectedIndex]?.numberOfCourts || 0 }, (_, i) => sportsData[selectedIndex]?.courtData?.[i] || `Court${i + 1}:0`).map((item: string) => {
-                  const [cName, flag] = item.split(":");
-                  const booked = flag === "1";
+                  const [cName] = item.split(":");
+                  const unavailable = sportsData[selectedIndex]?.courts?.some((court) => court.name === cName && court.manualOccupied);
                   return (
                     <label key={cName} className={`relative cursor-pointer group`}>
                       <input
@@ -306,16 +306,16 @@ export default function AgniCodersBooking() {
                         value={cName}
                         checked={selectedCourt === cName}
                         onChange={() => setSelectedCourt(cName)}
-                        disabled={booked}
+                        disabled={unavailable}
                         className="peer sr-only"
                       />
                       <div className={`
                           px-6 py-3 rounded-xl border transition-all duration-300 font-medium
-                          ${booked ? 'bg-red-500/10 border-red-500/30 text-red-500 cursor-not-allowed opacity-60' :
+                          ${unavailable ? 'bg-red-500/10 border-red-500/30 text-red-500 cursor-not-allowed opacity-60' :
                           'bg-accent/5 border-white/10 dark:border-white/10 border-black/10 hover:border-primary/50 peer-checked:bg-primary/20 peer-checked:border-primary peer-checked:text-primary peer-checked:shadow-[0_0_15px_-5px_var(--color-primary)]'}
                       `}>
                         {cName}
-                        {booked && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">Reserved</span>}
+                        {unavailable && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">Occupied</span>}
                       </div>
                     </label>
                   );
@@ -327,7 +327,7 @@ export default function AgniCodersBooking() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || !selectedSportData || availableCourts <= 0}
+            disabled={submitting || !selectedSportData || (!isPublicFacility && !selectedCourt) || (isPublicFacility && availableCourts <= 0)}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl font-bold text-lg shadow-[0_0_20px_-5px_var(--color-primary)] transform hover:scale-[1.01] transition-all duration-300"
           >
             {submitting ? "Creating Booking..." : "Generate QR Code"}

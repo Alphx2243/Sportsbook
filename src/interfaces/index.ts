@@ -25,9 +25,16 @@ export interface Sport {
   sportType: 'public' | 'private';
   maxCapacity?: number | null;
   numPlayers?: number | null;
+  courts?: Court[];
   createdAt: Date;
   updatedAt: Date;
   equipments: Equipment[];
+}
+
+export interface Court {
+  id: string;
+  name: string;
+  manualOccupied?: boolean;
 }
 
 export interface Equipment {

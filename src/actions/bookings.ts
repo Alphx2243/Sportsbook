@@ -517,7 +517,6 @@ async function assertSportAvailability(tx: any, sport: any, courtNo: string | un
     if (!courtNo) throw new Error('Please select a court.')
     const requestedCourt = await resolveCourtByNo(tx, sport.id, courtNo)
     if (!requestedCourt?.isActive || requestedCourt.manualOccupied) throw new Error('Court is not available!')
-    if (activeBookings.some((booking: any) => booking.courtId === requestedCourt.id)) throw new Error('Court already booked!')
 }
 
 function assertPlayerCountForSport(sport: any, numPlayers: number) {
