@@ -35,6 +35,7 @@ export interface Court {
   id: string;
   name: string;
   manualOccupied?: boolean;
+  studentCount?: number;
 }
 
 export interface Equipment {

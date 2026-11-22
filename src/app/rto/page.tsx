@@ -209,6 +209,7 @@ const OccupancyLocation = ({ info }: { info: any }) => {
         {(info.courtData || []).map((c: string, i: number) => {
           const [name, status] = c.split(":");
           const isOccupied = status === "1";
+          const studentCount = info.courts?.find((court: any) => court.name === name)?.studentCount || 0;
 
           return (
             <div
@@ -223,7 +224,10 @@ const OccupancyLocation = ({ info }: { info: any }) => {
                 {name || `Court ${i + 1}`}
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mt-2">
-                {isOccupied ? "Reserved" : "Open"}
+                {isOccupied ? "Occupied" : "Open"}
+              </span>
+              <span className="mt-1 text-xs font-bold text-foreground">
+                {studentCount} {studentCount === 1 ? "student" : "students"}
               </span>
             </div>
           );

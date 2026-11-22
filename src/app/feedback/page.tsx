@@ -11,9 +11,9 @@ export default function FeedbackPage() {
       <section className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-8 text-center shadow-sm sm:p-12">
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">SportsBook</p>
         <h1 className="mt-4 text-4xl font-bold tracking-tight">Feedback & Suggestions</h1>
-        <p className="mt-6 text-lg text-muted-foreground">For grievances or feedback, contact</p>
+        <p className="mt-6 text-lg text-muted-foreground">For grievances or feedback</p>
         {/* <Link href="mailto:priyansh24440@iiitd.ac.in" className="mt-2 inline-block text-2xl font-semibold text-primary hover:underline"> */}
-          Priyansh Varshney · priyansh24440@iiitd.ac.in
+          {/* Priyansh Varshney · priyansh24440@iiitd.ac.in */}
         {/* </Link> */}
         <div>
           <Link

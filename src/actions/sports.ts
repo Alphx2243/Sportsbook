@@ -10,7 +10,7 @@ import { ROLES } from '@/lib/roles'
 import { equipmentList, nonNegativeInt, positiveInt, requiredString, sportTypeValue } from '@/lib/validation'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, syncCourtsForSport, withSportAvailability } from '@/lib/normalized-data'
 import { expireOverdueBookings } from '@/lib/booking-state'
-import { isPublicSport } from '@/lib/facility-rules'
+import { countCourtStudents, isPublicSport } from '@/lib/facility-rules'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 
 async function withSportView(sport: any) {
@@ -28,7 +28,7 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
             include: { Equipment: true, courts: { where: { isActive: true }, orderBy: { courtNumber: 'asc' } } }
           }),
           prisma.booking.findMany({
-            where: { status: { in: ['pending', 'active', 'returned'] } },
+            where: { status: 'active' },
             select: { sportId: true, courtId: true, numberOfPlayers: true },
           }),
         ])
@@ -42,7 +42,11 @@ export async function getSports(): Promise<ActionResponse<{ documents: any[], to
             const { Equipment, ...rest } = sport
             const bookings = bookingsBySport.get(sport.id) || []
             const bookedCourtIds = new Set(bookings.map((booking: any) => booking.courtId).filter(Boolean))
-            const courts = (sport.courts || []).map((court: any) => ({ ...court, isBooked: bookedCourtIds.has(court.id) }))
+            const courts = (sport.courts || []).map((court: any) => ({
+                ...court,
+                isBooked: bookedCourtIds.has(court.id),
+                studentCount: countCourtStudents(bookings, court.id) + (court.manualOccupancy || 0),
+            }))
             const bookingPlayers = bookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0)
             const manualOccupancy = courts.reduce((sum: number, court: any) => sum + (court.manualOccupancy || 0), 0)
             const occupiedCourtIds = isPublicSport(sport)

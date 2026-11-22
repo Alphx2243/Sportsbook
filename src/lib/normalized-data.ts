@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { isPublicSport } from '@/lib/facility-rules'
+import { countCourtStudents, isPublicSport } from '@/lib/facility-rules'
 
 const IST_TIME_ZONE = 'Asia/Kolkata'
 const IST_OFFSET_MINUTES = 330
@@ -173,11 +173,15 @@ export async function syncCourtsForSport(tx: any, sportId: string, numberOfCourt
 
 export async function withSportAvailability(tx: any, sport: any) {
   const activeBookings = await tx.booking.findMany({
-    where: { sportId: sport.id, status: { in: ['pending', 'active', 'returned'] } },
+    where: { sportId: sport.id, status: 'active' },
     select: { courtId: true, numberOfPlayers: true },
   })
   const bookedCourtIds = new Set(activeBookings.map((booking: any) => booking.courtId).filter(Boolean))
-  const courts = (sport.courts || []).map((court: any) => ({ ...court, isBooked: bookedCourtIds.has(court.id) }))
+  const courts = (sport.courts || []).map((court: any) => ({
+    ...court,
+    isBooked: bookedCourtIds.has(court.id),
+    studentCount: countCourtStudents(activeBookings, court.id) + (court.manualOccupancy || 0),
+  }))
   const occupiedCourtIds = isPublicSport(sport)
     ? new Set()
     : new Set(courts.filter((court: any) => court.manualOccupied || court.isBooked).map((court: any) => court.id))

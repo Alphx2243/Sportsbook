@@ -197,6 +197,7 @@ model BookingEquipment {
   bookingId   String
   equipmentId String
   count       Int       @default(1)
+  issued      Boolean   @default(true)
   Booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   Equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 

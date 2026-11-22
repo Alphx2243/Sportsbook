@@ -11,9 +11,9 @@ import { normalizeRole, ROLES } from '@/lib/roles'
 import { bookingPlayerCount, bookingStatus, equipmentIssues, positiveInt, requiredString } from '@/lib/validation'
 import { createBookingQrPayload, parseBookingQrPayload, verifyBookingQrPayload } from '@/lib/booking-qr'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, resolveCourtByNo, resolveSportByName, withBookingDisplay } from '@/lib/normalized-data'
-import { expireOverdueBookings, restoreBookingEquipment } from '@/lib/booking-state'
+import { expireOverdueBookings, issueBookingEquipment, restoreBookingEquipment } from '@/lib/booking-state'
 import { expireOverdueGymSessions } from '@/lib/gym-session'
-import { isPublicSport } from '@/lib/facility-rules'
+import { hasAvailableCapacity, isCourtAvailable, isPublicSport } from '@/lib/facility-rules'
 // import { notifySportUpdate } from '@/lib/socket-notify'
 import { formatISTTime, getISTDate } from '@/lib/utils'
 
@@ -339,7 +339,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
             const numPlayers = bookingPlayerCount(data.numberOfPlayers)
             assertPlayerCountForSport(sport, numPlayers)
             const courtNo = data.CourtNo
-            await assertSportAvailability(tx, sport, courtNo ?? undefined, numPlayers)
+            await assertSportAvailability(tx, sport, courtNo ?? undefined)
 
             const court = isPublicSport(sport) ? null : await resolveCourtByNo(tx, sport.id, data.CourtNo)
             const now = getISTDate()
@@ -361,14 +361,13 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
             for (const issued of issues) {
                 const equipment = await tx.equipment.findFirst({ where: { name: issued.name, sportId: sport.id } });
                 if (!equipment) throw new Error(`Equipment '${issued.name}' not found for this sport.`);
-                if (equipment.inUse + issued.count > equipment.total) throw new Error(`Not enough '${issued.name}' available.`);
-                await tx.equipment.update({ where: { id: equipment.id }, data: { inUse: { increment: issued.count } } });
                 await tx.bookingEquipment.create({
                     data: {
                         id: randomUUID(),
                         bookingId: booking.id,
                         equipmentId: equipment.id,
-                        count: issued.count
+                        count: issued.count,
+                        issued: false,
                     }
                 });
             }
@@ -428,6 +427,25 @@ export async function activateBooking(qrData: string): Promise<ActionResponse> {
                     qrHash: booking.qrHash,
                 })
             }
+
+            const [sport]: any = await tx.$queryRaw`SELECT * FROM "Sport" WHERE "id" = ${booking.sportId} FOR UPDATE`
+            if (!sport) throw new Error('Associated Sport not found')
+            if (isPublicSport(sport)) {
+                const activePlayers = await tx.booking.aggregate({
+                    where: { sportId: sport.id, status: 'active' },
+                    _sum: { numberOfPlayers: true },
+                })
+                const occupied = (activePlayers._sum.numberOfPlayers || 0) + (sport.manualOccupancy || 0)
+                if (!sport.maxCapacity || !hasAvailableCapacity(sport.maxCapacity, occupied, booking.numberOfPlayers)) {
+                    throw new Error('Facility is full.')
+                }
+            } else {
+                const [court]: any = booking.courtId
+                    ? await tx.$queryRaw`SELECT * FROM "Court" WHERE "id" = ${booking.courtId} FOR UPDATE`
+                    : []
+                if (!isCourtAvailable(court)) throw new Error('Court is no longer available.')
+            }
+            await issueBookingEquipment(tx, bookingId)
 
             const start = new Date(booking.startAt)
             const end = new Date(booking.endAt)
@@ -505,18 +523,14 @@ function revalidateAvailabilityPaths() {
     revalidatePath('/admin/sports')
 }
 
-async function assertSportAvailability(tx: any, sport: any, courtNo: string | undefined, numPlayers: number) {
-    const activeBookings = await tx.booking.findMany({ where: { sportId: sport.id, status: { in: ['pending', 'active', 'returned'] } } })
+async function assertSportAvailability(tx: any, sport: any, courtNo: string | undefined) {
     if (isPublicSport(sport)) {
-        if (!sport.maxCapacity || sport.maxCapacity <= 0) throw new Error('Public facilities require a capacity.')
-        const alreadyBookedPlayers = activeBookings.reduce((sum: number, booking: any) => sum + (booking.numberOfPlayers || 0), 0) + (sport.manualOccupancy || 0)
-        if (alreadyBookedPlayers + numPlayers > sport.maxCapacity) throw new Error('Facility is full!')
         return
     }
 
     if (!courtNo) throw new Error('Please select a court.')
     const requestedCourt = await resolveCourtByNo(tx, sport.id, courtNo)
-    if (!requestedCourt?.isActive || requestedCourt.manualOccupied) throw new Error('Court is not available!')
+    if (!isCourtAvailable(requestedCourt)) throw new Error('Court is not available!')
 }
 
 function assertPlayerCountForSport(sport: any, numPlayers: number) {
