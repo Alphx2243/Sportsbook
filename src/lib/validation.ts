@@ -1,5 +1,6 @@
 ﻿// done
 import { normalizeRole } from '@/lib/roles'
+import { isBookingPlayerCount, MAX_BOOKING_PLAYERS } from '@/lib/facility-rules'
 
 const BOOKING_STATUSES = new Set(['pending', 'active', 'returned', 'expired', 'completed'])
 const MATCH_STATUSES = new Set(['live', 'upcoming', 'finished'])
@@ -28,6 +29,12 @@ export function positiveInt(value: unknown, field: string): number {
   const parsed = Number(value)
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${field} must be a positive integer.`)
   return parsed
+}
+
+export function bookingPlayerCount(value: unknown): number {
+  const players = positiveInt(value, 'Number of players')
+  if (!isBookingPlayerCount(players)) throw new Error(`A booking can include at most ${MAX_BOOKING_PLAYERS} players.`)
+  return players
 }
 
 export function nonNegativeInt(value: unknown, field: string, fallback?: number): number {

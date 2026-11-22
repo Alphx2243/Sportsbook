@@ -8,7 +8,7 @@ import { ActionResponse, CreateBookingInput, UpdateBookingInput } from '@/interf
 import { fail, ok } from '@/lib/action-response'
 import { bookingUserSelect, ensureAdmin, ensureRoles, ensureSelfOrAdmin, requireUser } from '@/lib/auth-utils'
 import { normalizeRole, ROLES } from '@/lib/roles'
-import { bookingStatus, equipmentIssues, positiveInt, requiredString } from '@/lib/validation'
+import { bookingPlayerCount, bookingStatus, equipmentIssues, positiveInt, requiredString } from '@/lib/validation'
 import { createBookingQrPayload, parseBookingQrPayload, verifyBookingQrPayload } from '@/lib/booking-qr'
 import { dateToDateString, dateToTimeString, getISTDayRange, parseBookingDateTime, resolveCourtByNo, resolveSportByName, withBookingDisplay } from '@/lib/normalized-data'
 import { expireOverdueBookings, restoreBookingEquipment } from '@/lib/booking-state'
@@ -26,7 +26,7 @@ export async function updateBooking(id: string, data: UpdateBookingInput): Promi
         const existing = await assertBookingAccess(id)
         const updateData: any = {
             userId: data.userId !== undefined ? requiredString(data.userId, 'User ID') : undefined,
-            numberOfPlayers: data.numberOfPlayers ? positiveInt(data.numberOfPlayers, 'Number of players') : undefined,
+            numberOfPlayers: data.numberOfPlayers ? bookingPlayerCount(data.numberOfPlayers) : undefined,
             startAt: data.startTime !== undefined || data.date !== undefined
                 ? parseBookingDateTime(data.date || dateToDateString(existing.startAt), data.startTime || dateToTimeString(existing.startAt))
                 : undefined,
@@ -37,12 +37,14 @@ export async function updateBooking(id: string, data: UpdateBookingInput): Promi
             qrDetail: data.qrdetail,
             status: data.status !== undefined ? bookingStatus(data.status) : undefined,
         }
+        let sport = existing.sport
         if (data.sportName || data.CourtNo !== undefined) {
-            const sport = data.sportName ? await resolveSportByName(prisma, data.sportName) : await prisma.sport.findUnique({ where: { id: existing.sportId } })
+            sport = data.sportName ? await resolveSportByName(prisma, data.sportName) : await prisma.sport.findUnique({ where: { id: existing.sportId } })
             const court = await resolveCourtByNo(prisma, sport.id, data.CourtNo ?? existing.court?.courtNumber?.toString())
             updateData.sportId = sport.id
             updateData.courtId = court?.id || null
         }
+        assertPlayerCountForSport(sport, updateData.numberOfPlayers ?? existing.numberOfPlayers)
         const booking = await prisma.booking.update({
             where: { id },
             data: updateData,
@@ -334,8 +336,8 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
             const [sport]: any = await tx.$queryRaw`SELECT * FROM "Sport" WHERE "name" = ${data.sportName} FOR UPDATE`;
             if (!sport) throw new Error('Sport not found.')
 
-            const numPlayers = positiveInt(data.numberOfPlayers, 'Number of players')
-            if (numPlayers !== 1) throw new Error('Bookings reserve one student at a time.')
+            const numPlayers = bookingPlayerCount(data.numberOfPlayers)
+            assertPlayerCountForSport(sport, numPlayers)
             const courtNo = data.CourtNo
             await assertSportAvailability(tx, sport, courtNo ?? undefined, numPlayers)
 
@@ -351,7 +353,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
                     startTime: dateToTimeString(now),
                     enddate: dateToDateString(endAt),
                     endTime: dateToTimeString(endAt),
-                    status: 'active',
+                    status: 'pending',
                 }
                 : { ...data, numberOfPlayers: numPlayers }
             const booking = await createBookingWithCode(tx, bookingData, sport.id, court?.id)
@@ -373,7 +375,7 @@ export async function secureBooking(data: CreateBookingInput): Promise<ActionRes
 
             return await tx.booking.update({
                 where: { id: booking.id },
-                data: isPublicSport(sport) ? { scanned: true } : buildSignedQrUpdate(booking, data.qrdetail),
+                data: buildSignedQrUpdate(booking, data.qrdetail),
                 include: { sport: true, court: true },
             });
         }, interactiveTransactionOptions)
@@ -518,6 +520,12 @@ async function assertSportAvailability(tx: any, sport: any, courtNo: string | un
     if (activeBookings.some((booking: any) => booking.courtId === requestedCourt.id)) throw new Error('Court already booked!')
 }
 
+function assertPlayerCountForSport(sport: any, numPlayers: number) {
+    if (isPublicSport(sport) && numPlayers !== 1) {
+        throw new Error('Public facility bookings are limited to one player.')
+    }
+}
+
 function withGymScanDisplay(action: 'created' | 'finished', log: any) {
     const entry = formatISTTime(new Date(log.entryTime))
     const exit = log.exitTime ? formatISTTime(new Date(log.exitTime)) : null
@@ -540,7 +548,7 @@ function normalizeBookingCreateData(data: CreateBookingInput, sportId?: string, 
         userId: requiredString(data.userId, 'User ID'),
         sportId,
         courtId,
-        numberOfPlayers: positiveInt(data.numberOfPlayers, 'Number of players'),
+        numberOfPlayers: bookingPlayerCount(data.numberOfPlayers),
         startAt: parseBookingDateTime(requiredString(data.date, 'Date', 20), requiredString(data.startTime, 'Start time', 20)),
         endAt: parseBookingDateTime(requiredString(data.enddate || data.date, 'End date', 20), requiredString(data.endTime, 'End time', 20)),
         qrDetail: data.qrdetail,

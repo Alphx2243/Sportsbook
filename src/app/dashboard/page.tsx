@@ -317,7 +317,7 @@ export default function Dashboard() {
                                 >
                                     <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
                                         <QrCode className="w-6 h-6 text-primary" />
-                                        Active Booking
+                                        {activeBooking.status === 'pending' ? 'Booking QR' : 'Active Booking'}
                                     </h2>
                                     <div className="glass-panel overflow-hidden border border-primary/20 rounded-3xl relative">
                                         <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -327,24 +327,24 @@ export default function Dashboard() {
                                         <div className="flex flex-col md:flex-row p-8 gap-8 items-center relative z-10">
                                             {}
                                             {activeBooking.status === 'pending' && (
-                                                <div className="bg-white p-4 rounded-2xl shadow-2xl relative group">
-                                                    <div className="absolute -inset-2 bg-primary/15 blur-lg group-hover:bg-primary/25 transition-colors" />
+                                                <div className="w-full max-w-[280px] rounded-2xl bg-white p-5 text-center shadow-2xl">
+                                                    <p className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-500">Show this to the guard</p>
                                                     {qrUrl ? (
                                                         <Image
                                                             src={qrUrl}
                                                             alt="Booking QR"
                                                             width={240}
                                                             height={240}
-                                                            className="w-60 h-60 relative z-10"
+                                                            className="mx-auto h-60 w-60"
                                                         />
                                                     ) : (
-                                                        <div className="w-60 h-60 relative z-10 flex items-center justify-center text-gray-500 text-sm">
+                                                        <div className="mx-auto flex h-60 w-60 items-center justify-center text-sm text-gray-500">
                                                             Loading QR...
                                                         </div>
                                                     )}
-                                                    <div className="relative z-10 mt-3 text-center text-gray-700">
-                                                        <p className="text-[10px] font-bold uppercase tracking-wider">Manual booking code</p>
-                                                        <p className="mt-1 font-mono text-lg font-bold tracking-[0.35em] select-all">{activeBooking.bookingCode}</p>
+                                                    <div className="mt-4 border-t border-gray-200 pt-4 text-gray-700">
+                                                        <p className="text-[10px] font-bold uppercase tracking-wider">Or use this code</p>
+                                                        <p className="mt-1 font-mono text-xl font-bold tracking-[0.35em] select-all">{activeBooking.bookingCode}</p>
                                                     </div>
                                                 </div>
                                             )}
@@ -356,8 +356,11 @@ export default function Dashboard() {
                                                     </span>
                                                     <h3 className="text-4xl font-black text-foreground tracking-tighter">
                                                         {activeBooking.sportName}
-                                                        <span className="ml-3 text-primary/50">{activeBooking.courtNo}</span>
+                                                        {activeBooking.courtNo && <span className="ml-3 text-primary/50">{activeBooking.courtNo}</span>}
                                                     </h3>
+                                                    {activeBooking.status === 'pending' && (
+                                                        <p className="mt-3 text-sm text-muted-foreground">Your booking starts when the QR is scanned.</p>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

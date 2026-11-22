@@ -8,7 +8,7 @@ import {
     QrCode, Upload, Clock, RefreshCw, User
 } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { AddGymQRLog, activateBooking, completeBooking, getBookings } from '@/actions/bookings'
+import { activateBooking, completeBooking, getBookings } from '@/actions/bookings'
 import jsQR from 'jsqr'
 
 export default function BookingScannerPage() {
@@ -124,13 +124,12 @@ export default function BookingScannerPage() {
         setIsProcessing(true)
         setError('')
         try {
-            const gymUserId = getGymUserId(data)
-            const res = gymUserId ? await AddGymQRLog(gymUserId) : await activateBooking(data)
+            const res = await activateBooking(data)
             if (res.success) {
-                setResult({ ...res.data, type: gymUserId ? 'gym' : 'booking' })
+                setResult({ ...res.data, type: 'booking' })
                 loadBookings()
             } else {
-                setError(res.error || (gymUserId ? 'Failed to start gym booking' : 'Failed to activate booking'))
+                setError(res.error || 'Failed to activate booking')
             }
         } catch (err) {
             setError('An unexpected error occurred')
@@ -164,7 +163,7 @@ export default function BookingScannerPage() {
                         Booking Activator
                     </h1> */}
                     <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto">
-                        Scan a court booking to activate it, or scan a gym QR once when a student enters.
+                        Scan a booking QR to activate a court or gym session.
                     </p>
                 </header>
 
@@ -229,7 +228,7 @@ export default function BookingScannerPage() {
                                 QR or Manual Code
                             </h3>
                             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm font-medium text-gray-400 space-y-4">
-                                <p>Gym QR codes start entry only. Students end their active gym booking from their dashboard.</p>
+                                <p>Scan a student&apos;s booking QR to start the session. Gym sessions can be ended by the student from their dashboard.</p>
                                 <form
                                     className="flex flex-col sm:flex-row gap-3"
                                     onSubmit={async (event) => {
@@ -396,16 +395,6 @@ function createQrScanner(elementId: string) {
         useBarCodeDetectorIfSupported: true,
         verbose: false,
     })
-}
-
-function getGymUserId(data: string) {
-    const value = data.trim()
-    try {
-        const parsed = JSON.parse(value)
-        if (typeof parsed.gymId === 'string') return parsed.gymId
-    } catch {
-    }
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null
 }
 
 async function decodeQrImage(scanner: Html5Qrcode, file: File) {

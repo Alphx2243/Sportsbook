@@ -16,6 +16,7 @@ export default function AgniCodersBooking() {
   const [sportsData, setSportsData] = useState<Sport[]>([]);
   const [sportsList, setSportsList] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [numPlayers, setNumPlayers] = useState(1);
   const [initialInUse, setInitialInUse] = useState<Record<string, number>>({});
   const [equipmentCounts, setEquipmentCounts] = useState<Record<string, number>>({});
   const [courts, setCourts] = useState<string[]>([]);
@@ -51,6 +52,7 @@ export default function AgniCodersBooking() {
 
   const initSport = (sport: Sport, idx: number) => {
     setSelectedIndex(idx);
+    setNumPlayers(1);
     const inUse: EquipmentCounts = {};
     const equipments = sport.equipments || [];
     equipments.forEach((eq: any) => {
@@ -105,7 +107,8 @@ export default function AgniCodersBooking() {
       const Enddate = formatISTDate(endDateTime);
       const Endtime = formatISTTime(endDateTime);
 
-      if (isPublicFacility && availableCourts <= 0) {
+      const playerCount = isPublicFacility ? 1 : numPlayers;
+      if (isPublicFacility && playerCount > availableCourts) {
         showToast({ message: "Not enough spots available", type: "error" });
         return;
       }
@@ -122,7 +125,7 @@ export default function AgniCodersBooking() {
             const diff = count - (initialInUse[name] || 0);
             return diff > 0 ? `${name}:${diff}` : null;
           }).filter((x): x is string => x !== null),
-        numberOfPlayers: 1,
+        numberOfPlayers: playerCount,
         startTime: currenttime,
         endTime: Endtime,
         date: currentdate,
@@ -134,7 +137,7 @@ export default function AgniCodersBooking() {
           email: user.email,
           rollNumber: user.rollNumber,
           sportName: selectedSport.name,
-          playerCount: 1,
+          playerCount,
           equipmentCounts: Object.fromEntries(
             Object.entries(equipmentCounts).map(([n, c]) => [n, c - (initialInUse[n] || 0)])
           ),
@@ -226,6 +229,27 @@ export default function AgniCodersBooking() {
             </div>
 
             {!isPublicFacility && <div>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Number of Players</h3>
+              <div className="flex items-center justify-between bg-accent/5 border border-white/10 dark:border-white/10 border-black/10 rounded-xl p-3">
+                <button
+                  type="button"
+                  onClick={() => setNumPlayers((players) => Math.max(1, players - 1))}
+                  className="w-10 h-10 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary transition-colors"
+                >-</button>
+                <span className="font-bold text-xl text-foreground">{numPlayers}</span>
+                <button
+                  type="button"
+                  onClick={() => setNumPlayers((players) => Math.min(3, players + 1))}
+                  disabled={numPlayers >= 3}
+                  className="w-10 h-10 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary transition-colors disabled:opacity-30 disabled:hover:bg-primary/10"
+                >+</button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2 text-right">
+                Up to 3 players
+              </p>
+            </div>}
+
+            {!isPublicFacility && <div>
               <h3 className="text-lg font-semibold text-foreground mb-4">Booking Duration</h3>
               <select
                 value={duration}
@@ -291,7 +315,7 @@ export default function AgniCodersBooking() {
                           'bg-accent/5 border-white/10 dark:border-white/10 border-black/10 hover:border-primary/50 peer-checked:bg-primary/20 peer-checked:border-primary peer-checked:text-primary peer-checked:shadow-[0_0_15px_-5px_var(--color-primary)]'}
                       `}>
                         {cName}
-                        {booked && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">Booked</span>}
+                        {booked && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">Reserved</span>}
                       </div>
                     </label>
                   );

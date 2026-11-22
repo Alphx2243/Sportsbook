@@ -464,7 +464,7 @@ export default function Occupancy() {
           className="mb-12"
         >
           <h1 className="text-5xl md:text-7xl font-black text-gradient-premium mb-4 tracking-tighter">
-            LIVE OCCUPANCY
+            OCCUPANCY
           </h1>
         </motion.div>
 
